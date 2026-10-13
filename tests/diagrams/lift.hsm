@@ -1,0 +1,25 @@
+# The lift of docs/NOTATION.md
+name: Lift
+description: A lift with one call button on every floor
+machine Lift
+  initial -> Idle / floor = 1
+  state Idle
+    entry/ lamp_off()
+    CALL [call_floor > floor] -> MovingUp
+        / target = call_floor
+    CALL [call_floor < floor] -> MovingDown
+        / target = call_floor
+    CALL [call_floor == floor] -> DoorsOpen
+  state Moving
+    entry/ lamp_on()
+    exit/ stop_motor()
+    state MovingUp
+      entry/ motor_up()
+      FLOOR [floor != target] / floor += 1
+    state MovingDown
+      entry/ motor_down()
+      FLOOR [floor != target] / floor -= 1
+    FLOOR [floor == target] -> DoorsOpen
+  state DoorsOpen
+    entry/ open_doors()
+    TIMEOUT -> Idle / close_doors()

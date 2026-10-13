@@ -1,0 +1,32 @@
+# Every element of the notation, two machines
+name: Elements
+description: The elements of the notation
+machine Bomb
+  initial -> Setting / timeout = INIT_TIMEOUT
+  state Setting
+    entry/ show(timeout)
+    UP [timeout < 60] / ++timeout
+    DOWN [timeout > 1] / --timeout
+    ARM -> Timing / code = 0
+  state Timing
+    TICK [fine == 0] -> Check / --timeout
+    DIGIT(d) /
+        code = code * 10 + d
+        show(code)
+    ARM [code == defuse] -> Setting
+  choice Check
+    [timeout == 0] -> Boom / boom()
+    [else] -> Timing
+  final Boom
+machine "Second machine"
+  initial -> Outer
+  state Outer
+    initial -> Outer::Inner
+    state Inner
+      entry/ start()
+      [done] -> "Quoted state"
+    BREAK -> Halt
+  state "Quoted state"
+    exit/ stop()
+    -> Outer
+  terminate Halt
