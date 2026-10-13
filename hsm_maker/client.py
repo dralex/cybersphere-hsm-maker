@@ -241,8 +241,9 @@ class Client:
     def _post(self, path, headers, body):
         url = self.url + path
         data = json.dumps(body).encode('utf-8')
-        failure = None
-        for attempt in range(self.retries):
+        failure = last = None
+        attempts = max(1, self.retries)
+        for attempt in range(attempts):
             if self.usage.requests >= self.max_requests:
                 raise RequestLimitError('the request limit {} is reached'
                                         .format(self.max_requests))
@@ -267,7 +268,7 @@ class Client:
             except (urllib.error.URLError, OSError) as error:
                 failure = ClientError('cannot reach {}: {}'.format(url, error))
                 last = error
-            if attempt + 1 < self.retries:
+            if attempt + 1 < attempts:
                 self._pause(attempt, last)
         raise failure
 

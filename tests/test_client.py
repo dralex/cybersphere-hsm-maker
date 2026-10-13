@@ -103,7 +103,7 @@ def test_client_error_is_not_retried(stub):
         client.complete('s', MESSAGES)
     assert 'HTTP 400' in str(error.value) and 'bad model' in str(error.value)
     assert 'secret' not in str(error.value)
-    assert pauses == [] and client.usage.requests == 1
+    assert not pauses and client.usage.requests == 1
 
 
 def test_server_errors_exhaust_the_retries(stub):
@@ -113,6 +113,14 @@ def test_server_errors_exhaust_the_retries(stub):
     with pytest.raises(C.ClientError):
         client.complete('s', MESSAGES)
     assert len(pauses) == C.RETRIES - 1
+
+
+def test_no_retries_still_sends(stub):
+    stub.answer({'error': 'down'}, 500)
+    client, pauses = make(stub, retries=0)
+    with pytest.raises(C.ClientError):
+        client.complete('s', MESSAGES)
+    assert (len(stub.requests), pauses) == (1, [])
 
 
 def test_unreachable():

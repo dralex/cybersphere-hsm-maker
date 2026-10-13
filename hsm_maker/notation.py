@@ -334,6 +334,45 @@ def _transition(parent, line, text):
                                          guard or '', action or '', target))
 
 
+def _declaration(diagram, stack, line, parent, keyword):
+    first, _, rest = line.text.partition('\n')
+    if rest:
+        raise _Fail('N26', keyword=keyword, name=first[len(keyword):].strip(),
+                    text=rest.split('\n')[0].strip())
+    name = _name(first[len(keyword):], keyword)
+    if keyword == MACHINE:
+        if parent is not None:
+            raise _Fail('N03')
+        vertex = Vertex(MACHINE, name, line.number)
+        diagram.machines.append(vertex)
+    elif parent.kind == CHOICE:
+        raise _Fail('N12')
+    else:
+        vertex = Vertex(keyword, name, line.number, parent)
+    if keyword in BLOCKS:
+        stack.append((line.indent, vertex))
+
+
+def _initial(parent, line):
+    if parent.kind == CHOICE:
+        raise _Fail('N12')
+    event, guard, target, action = _split(line.text[len(INITIAL):])
+    if event or guard is not None or target is None:
+        raise _Fail('N24')
+    vertex = Vertex(INITIAL, None, line.number, parent)
+    vertex.transitions.append(Transition(line.number, vertex, '', '',
+                                         action or '', target))
+
+
+def _behaviour(parent, line, match):
+    if parent.kind != STATE:
+        raise _Fail('N11')
+    action = match.group(2).strip()
+    if not action:
+        raise _Fail('N21', keyword=match.group(1) + '/')
+    parent.behaviours.append(Behaviour(match.group(1), action, line.number))
+
+
 def _statement(diagram, stack, line, issues):
     text = line.text
     while stack and stack[-1][0] >= line.indent:
@@ -348,49 +387,17 @@ def _statement(diagram, stack, line, issues):
         if keyword != MACHINE:
             raise _Fail('N02')
     if keyword in (MACHINE, STATE, CHOICE, FINAL, TERMINATE):
-        first, _, rest = text.partition('\n')
-        if rest:
-            raise _Fail('N26', keyword=keyword,
-                        name=first[len(keyword):].strip(),
-                        text=rest.split('\n')[0].strip())
-        name = _name(first[len(keyword):], keyword)
-        if keyword == MACHINE:
-            if parent is not None:
-                raise _Fail('N03')
-            vertex = Vertex(MACHINE, name, line.number)
-            diagram.machines.append(vertex)
-        elif parent.kind == CHOICE:
-            raise _Fail('N12')
-        else:
-            vertex = Vertex(keyword, name, line.number, parent)
-        if keyword in BLOCKS:
-            stack.append((line.indent, vertex))
-        return
-    if keyword == INITIAL or keyword.startswith(INITIAL + '->'):
-        if parent.kind == CHOICE:
-            raise _Fail('N12')
-        event, guard, target, action = _split(text[len(INITIAL):])
-        if event or guard is not None or target is None:
-            raise _Fail('N24')
-        vertex = Vertex(INITIAL, None, line.number, parent)
-        vertex.transitions.append(Transition(line.number, vertex, '', '',
-                                             action or '', target))
-        return
-    if DO_RE.match(text):
+        _declaration(diagram, stack, line, parent, keyword)
+    elif keyword == INITIAL or keyword.startswith(INITIAL + '->'):
+        _initial(parent, line)
+    elif DO_RE.match(text):
         raise _Fail('N22')
-    behaviour = BEHAVIOUR_RE.match(text)
-    if behaviour:
-        if parent.kind != STATE:
-            raise _Fail('N11')
-        action = behaviour.group(2).strip()
-        if not action:
-            raise _Fail('N21', keyword=behaviour.group(1) + '/')
-        parent.behaviours.append(Behaviour(behaviour.group(1), action,
-                                           line.number))
-        return
-    if keyword in HEADERS or HEADER_RE.match(text):
+    elif BEHAVIOUR_RE.match(text):
+        _behaviour(parent, line, BEHAVIOUR_RE.match(text))
+    elif keyword in HEADERS or HEADER_RE.match(text):
         raise _Fail('N27', header=text.split(':', 1)[0] + ':')
-    _transition(parent, line, text)
+    else:
+        _transition(parent, line, text)
 
 
 def parse(text):

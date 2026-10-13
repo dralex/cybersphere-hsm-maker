@@ -139,7 +139,7 @@ def test_library_error_has_the_line():
     def reject():
         raise CyberiadaML.ParametersException('rejected')
     with pytest.raises(B.BuildError) as error:
-        B._call(7, reject)
+        B._call(7, reject)  # pylint: disable=protected-access
     issue = error.value.issues[0]
     assert (issue.code, issue.line, issue.fields['message']) == \
         ('B01', 7, 'rejected')

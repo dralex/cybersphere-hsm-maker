@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cybersphere-hsm-maker"
+version = "0.1.0"
+description = "The LLM-based maker of the CyberiadaML HSM diagrams from a description of a system"
+readme = "README.md"
+requires-python = ">=3.8"
+authors = [{name = "Alexey Fedoseev", email = "aleksey@fedoseev.net"}]
+classifiers = [
+    "License :: OSI Approved :: GNU Lesser General Public License v3 or later (LGPLv3+)",
+    "Programming Language :: Python :: 3",
+]
+
+# the CyberiadaML module of libcyberiadamlpp-py is required as well; it is
+# not a pip package and is installed by its own build
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[project.scripts]
+hsm-maker = "hsm_maker.cli:main"
+
+[tool.setuptools]
+packages = ["hsm_maker"]
+
+[tool.setuptools.package-data]
+hsm_maker = ["prompts/*/*.md", "prompts/*/*.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
