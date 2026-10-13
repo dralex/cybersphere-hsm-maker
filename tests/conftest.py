@@ -33,8 +33,13 @@ TESTS = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(TESTS)
 sys.path.insert(0, ROOT)
 
+# the package is imported from the tree, not from an installation
+from hsm_maker.client import Reply, RequestLimitError, Usage  # pylint: disable=wrong-import-position
+
 DIAGRAMS = os.path.join(TESTS, 'diagrams')
 POLL = 0.01
+FAKE_INPUT = 100
+FAKE_OUTPUT = 10
 
 
 def diagram(name):
@@ -72,7 +77,7 @@ class Stub:
         stub = self
 
         class Handler(http.server.BaseHTTPRequestHandler):
-            def do_POST(self):
+            def do_POST(self):  # pylint: disable=invalid-name
                 length = int(self.headers.get('Content-Length', 0))
                 body = json.loads(self.rfile.read(length).decode('utf-8'))
                 headers = {k.lower(): v for k, v in self.headers.items()}
@@ -127,3 +132,28 @@ def clean_environment(monkeypatch):
     for name in list(os.environ):
         if name.startswith('HSM_MAKER_'):
             monkeypatch.delenv(name)
+
+
+class FakeClient:
+    """A scripted model: the answers in order, a text or (text, truncated);
+    the request limit when they run out."""
+
+    def __init__(self, answers):
+        self.answers = list(answers)
+        self.calls = []
+        self.usage = Usage()
+
+    def complete(self, system, messages):
+        if not self.answers:
+            raise RequestLimitError('no more answers')
+        self.calls.append((system, [dict(m) for m in messages]))
+        answer = self.answers.pop(0)
+        text, truncated = answer if isinstance(answer, tuple) \
+            else (answer, False)
+        spent = Usage(1, FAKE_INPUT, FAKE_OUTPUT)
+        self.usage.add(spent)
+        return Reply(text, spent, truncated)
+
+
+def fenced(text):
+    return 'The diagram:\n```hsm\n' + text + '```\n'
