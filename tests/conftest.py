@@ -20,7 +20,9 @@
 #
 #  -----------------------------------------------------------------------------
 
+import json
 import os
+import subprocess
 import sys
 
 TESTS = os.path.dirname(os.path.abspath(__file__))
@@ -34,3 +36,22 @@ def diagram(name):
     """The text of a notation file of tests/diagrams."""
     with open(os.path.join(DIAGRAMS, name), encoding='utf-8') as source:
         return source.read()
+
+
+GOOD =os.path.join(TESTS, 'good')
+VALIDATOR = os.path.join(os.path.dirname(ROOT), 'cyberiadaml-compat-tests')
+
+
+def validate(path):
+    """The ERROR and WARNING findings of the strict validator of
+    cyberiadaml-compat-tests for a file; None when it is not found."""
+    if not os.path.isdir(os.path.join(VALIDATOR, 'cgmlval')):
+        return None
+    result = subprocess.run([sys.executable, '-B', '-m', 'cgmlval', 'validate',
+                             '--strict', '--json', os.path.abspath(path)],
+                            cwd=VALIDATOR, stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE, check=False)
+    report = json.loads(result.stdout.decode('utf-8'))
+    return ['{} {}'.format(f['req'], f['message'])
+            for entry in report for f in entry['findings']
+            if f['severity'] in ('ERROR', 'WARNING')]
