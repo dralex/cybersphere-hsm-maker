@@ -1,6 +1,6 @@
 # The Cybersphere HSM Maker Architecture
 
-Document version: 0.1 (2026-10-13)
+Document version: 0.2 (2026-10-14)
 
 The maker turns a description of a system written in a natural language
 into a Hierarchical State Machine (HSM) diagram stored in the
@@ -217,6 +217,21 @@ and by the validator of `cyberiadaml-compat-tests` when it is found beside
 the repository. A static test keeps the sources inside the Python 3.8
 syntax. A run with a real model is a manual step.
 
+The record of 2026-10-14, `deepseek-flash` over `chat-completions`, the
+default options:
+
+| Prompt | Language | Rounds | Input / output tokens | Diagram |
+|---|---|---|---|---|
+| keyboard with Caps Lock | en | 1 | 1109 / 1356 | 2 states |
+| defusable time bomb | en | 1 | 1146 / 1905 | 3 states, a choice, a final |
+| pedestrian crossing | en | 1 | 1166 / 3810 | a composite of 4 states, offline mode |
+| toaster oven | ru | 1 | 1677 / 6022 | a composite of 2 states, door open |
+| traffic light with a night mode | ru | 1 | 1650 / 1303 | a composite of 3 states, a path target |
+
+Every document passed the strict check of the library and of `cgmlval`
+and opened in `CyberiadaHSM-Editor`. The checks see the form of a diagram,
+not its design: a model may simplify the behaviour of a description.
+
 ## Reuse
 
 | Need | Existing tool |
@@ -226,6 +241,13 @@ syntax. A run with a real model is a manual step.
 | the validation of the documents in the tests | `cgmlval` of `cyberiadaml-compat-tests` |
 | showing a diagram as text | `hsmview.py` of `hsm-console-viewer` |
 | editing a diagram by hand | `CyberiadaHSM-Editor` |
+
+## Known limits
+
+* The layout of `libhtreegeom` may leave long transition labels outside
+  the border of the machine: `check_geometry()` of the binding is false,
+  the strict checks pass (the `elements` test diagram).
+* One incoming transition per choice, no `do/` - limits of the library.
 
 ## Roadmap
 

@@ -1,6 +1,6 @@
 # The Cybersphere HSM Maker Interface Specification
 
-Document version: 0.1 (2026-10-13)
+Document version: 0.2 (2026-10-14)
 
 The package `hsm_maker` and the command `hsm-maker`. The reasons are in
 `ARCHITECTURE.md`, the notation and its issue codes in `NOTATION.md`.
@@ -10,8 +10,8 @@ The package `hsm_maker` and the command `hsm-maker`. The reasons are in
 * `__version__` - the version of the package.
 * `make(prompt, client=None, *, protocol=None, url=None, model=None,
   key=None, key_env=None, language='auto', geometry='full', rounds=3,
-  max_requests=None, timeout=None)` - make a diagram from the description
-  `prompt`; return a `Result`. Without `client` a `Client` is created from
+  max_requests=None, timeout=None, log=None)` - make a diagram from the
+  description `prompt`; return a `Result`; `log` as in `maker.run`. Without `client` a `Client` is created from
   the arguments and the environment (`client.from_environment`). Raises
   `ConfigError` for a bad configuration and `ClientError` when the server
   fails.
@@ -83,6 +83,7 @@ The model servers.
     Retries the codes 429 and 5xx and the network failures. Raises
     `ClientError`, `RequestLimitError`.
   * `usage` - the `Usage` of all the requests of the client.
+* `is_local(url)` - whether the server is on the local host.
 * `conventional_key_env(url)` - the conventional key variable of the
   server: `api.deepseek.com` - `DEEPSEEK_API_KEY`; `None` for an address.
 * `resolve_key(url, key_env=None, environ=os.environ)` - the key: the
@@ -107,6 +108,7 @@ The texts of the languages, `hsm_maker/prompts/<language>/`.
 * `Texts(language)` - the texts of a language:
   * `system` - the system prompt;
   * `text(key, **fields)` - a message by its key;
+  * `message(issue)` - the message of an issue without its line;
   * `render(issue)` - `line N: message`, `warning: ...` for a warning.
 
 ## Module maker
@@ -114,6 +116,7 @@ The texts of the languages, `hsm_maker/prompts/<language>/`.
 The conversion and the repair loop.
 
 * `ROUNDS` - 3.
+* `ACCEPTED`, `ROUNDS_SPENT`, `REQUEST_LIMIT` - the reasons of a `Result`.
 * `Conversion` - one notation converted: `notation`, `diagram`,
   `document`, `graphml`, `errors`, `warnings`, `ok`.
 * `Result` - `ok`, `graphml`, `document`, `notation` (of the last round),
@@ -125,8 +128,10 @@ The conversion and the repair loop.
 * `feedback(conversion, texts, truncated=False)` - the message to the
   model about a rejected conversion.
 * `run(prompt, client, language=AUTO, geometry=GEOMETRY_FULL,
-  rounds=ROUNDS)` - the loop of `ARCHITECTURE.md`; return a `Result`.
-  Raises `ClientError` other than the request limit.
+  rounds=ROUNDS, log=None)` - the loop of `ARCHITECTURE.md`; return a
+  `Result`. `log(number, reply, conversion)` is called after every round.
+  Raises `ClientError` other than the request limit. A client is any
+  object with `complete(system, messages)` and `usage`.
 
 ## Command hsm-maker
 
@@ -136,6 +141,7 @@ The conversion and the repair loop.
               [--timeout SECONDS] [--protocol chat-completions|messages]
               [--url URL] [--model NAME] [--key-env NAME] [-v] [--version]
 
+* `python -m hsm_maker` runs the same command.
 * The prompt is `PROMPT`, the file `-f` (`-` is the standard input) or the
   standard input.
 * `--notation FILE` converts a notation file without a model.

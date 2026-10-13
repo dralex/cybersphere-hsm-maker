@@ -69,4 +69,4 @@ documents, both protocols of the client against a local stub server, the
 repair loop with a scripted model and the command line. The documents are
 also checked with the validator of `cyberiadaml-compat-tests` when that
 repository is found beside this one. `pylint.sh` runs the linter over the
-sources.
+sources. `REGEN=1` records the good files of `tests/good` again.
