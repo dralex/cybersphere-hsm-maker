@@ -11,10 +11,10 @@ The package `hsm_maker` and the command `hsm-maker`. The reasons are in
 * `make(prompt, client=None, *, protocol=None, url=None, model=None,
   key=None, key_env=None, language='auto', geometry='full', rounds=3,
   max_requests=None, timeout=None, log=None)` - make a diagram from the
-  description `prompt`; return a `Result`; `log` as in `maker.run`. Without `client` a `Client` is created from
-  the arguments and the environment (`client.from_environment`). Raises
-  `ConfigError` for a bad configuration and `ClientError` when the server
-  fails.
+  description `prompt`; return a `Result`; `log` as in `maker.run`.
+  Without `client` a `Client` is created from the arguments and the
+  environment (`client.from_environment`). Raises `ConfigError` for a bad
+  configuration and `ClientError` when the server fails.
 
 The names `Result`, `Conversion`, `Issue`, `Client`, `Usage`, `ConfigError`,
 `ClientError`, `convert` and `run` are exported by the package too.
