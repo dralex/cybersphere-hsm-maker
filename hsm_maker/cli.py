@@ -23,14 +23,18 @@
 """hsm-maker: a CyberiadaML HSM diagram from a description."""
 
 import argparse
+import json
 import os
 import sys
 
 from . import __version__
-from .builder import GEOMETRIES, GEOMETRY_FULL
+from .builder import CHANGE_GEOMETRIES, GEOMETRY_FULL, GEOMETRY_UPDATE
 from .client import ClientError, ConfigError, PROTOCOLS, from_environment
 from .language import AUTO, Texts, choose, languages
-from .maker import REQUEST_LIMIT, ROUNDS, convert, run
+from .maker import (REQUEST_LIMIT, ROUNDS, Original, change, convert, run,
+                    run_update)
+from .notation import ERROR, WARNING
+from .reader import ReadError
 
 EXIT_MADE = 0
 EXIT_NOT_MADE = 1
@@ -54,12 +58,21 @@ def parser():
                           'the standard input')
     commands.add_argument('--notation', metavar='FILE',
                           help='convert a notation file without a model')
+    commands.add_argument('--update', metavar='FILE',
+                          help='change the diagram of the file; the prompt '
+                          'describes the change')
+    commands.add_argument('--render', metavar='FILE',
+                          help='print the notation of the diagram')
     commands.add_argument('-o', '--output', metavar='FILE',
                           help='the GraphML file; the standard output by '
                           'default')
-    commands.add_argument('--geometry', choices=GEOMETRIES,
-                          default=GEOMETRY_FULL,
-                          help='lay the diagram out or not (full)')
+    commands.add_argument('--diagnostics', metavar='FILE',
+                          help='write the issues and the changes as the '
+                          'editor diagnostics JSON')
+    commands.add_argument('--geometry', choices=CHANGE_GEOMETRIES,
+                          help='full: lay the diagram out, update: keep the '
+                          'drawing, none: no geometry (full; update with '
+                          '--update)')
     commands.add_argument('--language', choices=[AUTO] + languages(),
                           help='the language of the instructions '
                           '(${}, auto)'.format(ENV_LANGUAGE))
@@ -131,14 +144,37 @@ def _round(number, reply, conversion):
                         '{} issues'.format(len(conversion.errors))))
 
 
-def _offline(options, language):
+def _diagnostics(path, texts, outcome):
+    """The issues and the changes as the editor diagnostics JSON."""
+    if not path:
+        return
+    entries = []
+    for issue in outcome.errors + outcome.warnings:
+        entries.append({'severity': ERROR if issue.severity == ERROR
+                        else WARNING,
+                        'message': texts.render(issue), 'rule': issue.code})
+    for item in outcome.changes:
+        entry = {'severity': 'info', 'message': texts.change(item),
+                 'rule': item.code}
+        if item.element:
+            entry['element'] = item.element
+        entries.append(entry)
+    with open(path, 'w', encoding='utf-8') as target:
+        json.dump(entries, target, ensure_ascii=False, indent=1)
+
+
+def _offline(options, language, graphml):
     notation = _read(options.notation)
     texts = Texts(choose(language, notation))
-    conversion = convert(notation, options.geometry)
+    if graphml is None:
+        conversion = convert(notation, options.geometry)
+    else:
+        conversion = change(graphml, notation, options.geometry)
     for issue in conversion.errors + conversion.warnings:
         prefix = '{}:{}: '.format(options.notation, issue.line) \
             if issue.line is not None else '{}: '.format(options.notation)
         _say(prefix + texts.message(issue))
+    _diagnostics(options.diagnostics, texts, conversion)
     if not conversion.ok:
         return EXIT_NOT_MADE
     _write(options.output, conversion.graphml)
@@ -152,6 +188,7 @@ def _made(options, result):
             target.write(result.notation)
     for issue in result.errors + result.warnings:
         _say(texts.render(issue))
+    _diagnostics(options.diagnostics, texts, result)
     if result.reason == REQUEST_LIMIT:
         _say('{}: the request limit is reached'.format(PROGRAM))
     _say('rounds: {}, {}'.format(result.rounds, result.usage))
@@ -161,22 +198,43 @@ def _made(options, result):
     return EXIT_MADE
 
 
+def _original(options):
+    """The text of the diagram to change; None for a new diagram (no
+    --update, or an empty file: the empty document of the editor)."""
+    if not options.update:
+        return None
+    text = _read(options.update)
+    return text if text.strip() else None
+
+
 def main(argv=None):
     options = parser().parse_args(argv)
     language = options.language or os.environ.get(ENV_LANGUAGE) or AUTO
     try:
+        if options.render:
+            _write(None, Original(_read(options.render)).notation)
+            return EXIT_MADE
+        graphml = _original(options)
+        if options.geometry is None:
+            options.geometry = GEOMETRY_UPDATE if graphml is not None \
+                else GEOMETRY_FULL
         if options.notation:
-            return _offline(options, language)
+            return _offline(options, language, graphml)
         prompt = _prompt(options)
         choose(language, prompt)
         client = from_environment(options.protocol, options.url,
                                   options.model, key_env=options.key_env,
                                   max_requests=options.max_requests,
                                   timeout=options.timeout)
-        result = run(prompt, client, language, options.geometry,
-                     options.rounds, _round if options.verbose else None)
+        log = _round if options.verbose else None
+        if graphml is None:
+            result = run(prompt, client, language, options.geometry,
+                         options.rounds, log)
+        else:
+            result = run_update(graphml, prompt, client, language,
+                                options.geometry, options.rounds, log)
         return _made(options, result)
-    except ConfigError as error:
+    except (ConfigError, ReadError) as error:
         _say('{}: {}'.format(PROGRAM, error))
         return EXIT_USAGE
     except OSError as error:

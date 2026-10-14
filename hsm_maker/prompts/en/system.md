@@ -41,6 +41,11 @@ One element per line. Indentation with spaces shows nesting: the lines indented 
     terminate NAME                    a terminate pseudostate (the machine stops)
     choice NAME                       a choice pseudostate; its branches are indented under it:
       [GUARD] -> TARGET / ACTION      a branch; one branch may be [else]
+    history NAME -> TARGET            a shallow history in a state, with its default transition (optional)
+    deep history NAME -> TARGET       a deep history
+    entry point NAME -> TARGET        an entry point of a state; its transition leads inside
+    exit point NAME -> TARGET         an exit point of a state; its transition leads outside
+    submachine NAME of MACHINE        a state standing for another machine; indented: its entry and exit points
 
 Inside a state:
 
@@ -49,6 +54,8 @@ Inside a state:
     EVENT [GUARD] -> TARGET / ACTION  a transition leaving the state
     EVENT [GUARD] / ACTION            an internal transition: the state is not left
     [GUARD] -> TARGET / ACTION        a completion transition (no event)
+    EVENT [GUARD] propagate -> TARGET  the handled event goes on to the enclosing states (block stops it)
+    EVENT [GUARD] / defer             the event waits until the state is left
 
 The guard `[...]` and the `/ ACTION` part are optional everywhere.
 
@@ -58,6 +65,7 @@ The guard `[...]` and the `/ ACTION` part are optional everywhere.
 - GUARD: a boolean expression without [ and ].
 - ACTION: statements in the platform language (function calls, assignments). A long action continues on the following lines, indented deeper than its first line.
 - A line starting with # is a comment.
+- A transition reaches a point by its path: GO -> Job::Start. The entry points of a submachine are the entry points of its machine with the same names; its exit points lead on: exit point Done -> Ready.
 
 # Rules
 
@@ -67,6 +75,16 @@ The guard `[...]` and the `/ ACTION` part are optional everywhere.
 - Write the states in the order of the flow: the initial first, the final states last.
 - Keep the diagram as simple as the description allows; when several states react to an event the same way, put them into a composite state and give the transition to it.
 - When the description leaves something open, choose the simplest reasonable behaviour.
+
+# Changing a diagram
+
+When you get a diagram with a change to make:
+
+- Answer with the whole changed diagram in one hsm block.
+- Keep every line that the change does not touch exactly as it is.
+- To rename or move an element, keep its line and add (was OLD): `state Waiting (was Idle)`, `state Fan (was Cooling::Fan)`. Without it the element is replaced by a new one.
+- Names starting with _ belong to unnamed elements: keep them; never give such a name to a new element.
+- Lines `# note: ...` describe comments, components and settings of the diagram; they are kept anyway, use them as context.
 
 # Example
 

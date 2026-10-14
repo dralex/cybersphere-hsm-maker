@@ -24,16 +24,21 @@
 
 __version__ = '0.1.0'
 
-from .builder import GEOMETRY_FULL, GEOMETRY_NONE
+from .builder import GEOMETRY_FULL, GEOMETRY_NONE, GEOMETRY_UPDATE
 from .client import (Client, ClientError, ConfigError, RequestLimitError,
                      Usage, from_environment)
 from .language import AUTO
-from .maker import ROUNDS, Conversion, Result, convert, run
+from .maker import (ROUNDS, Conversion, Result, change, convert, run,
+                    run_update)
 from .notation import Issue
+from .patcher import Change
+from .reader import ReadError
 
-__all__ = ['GEOMETRY_FULL', 'GEOMETRY_NONE', 'AUTO', 'ROUNDS', 'Client',
-           'ClientError', 'ConfigError', 'RequestLimitError', 'Usage',
-           'Conversion', 'Result', 'Issue', 'convert', 'run', 'make']
+__all__ = ['GEOMETRY_FULL', 'GEOMETRY_NONE', 'GEOMETRY_UPDATE', 'AUTO',
+           'ROUNDS', 'Client', 'ClientError', 'ConfigError',
+           'RequestLimitError', 'Usage', 'Conversion', 'Result', 'Change',
+           'Issue', 'ReadError', 'convert', 'change', 'run', 'run_update',
+           'make', 'update']
 
 
 def make(prompt, client=None, *, protocol=None, url=None, model=None,
@@ -44,3 +49,16 @@ def make(prompt, client=None, *, protocol=None, url=None, model=None,
         client = from_environment(protocol, url, model, key, key_env,
                                   max_requests=max_requests, timeout=timeout)
     return run(prompt, client, language, geometry, rounds, log)
+
+
+def update(graphml, prompt, client=None, *, protocol=None, url=None,
+           model=None, key=None, key_env=None, language=AUTO,
+           geometry=GEOMETRY_UPDATE, rounds=ROUNDS, max_requests=None,
+           timeout=None, log=None):
+    """Change the diagram of the GraphML text by the description `prompt`;
+    return a Result with the changes."""
+    if client is None:
+        client = from_environment(protocol, url, model, key, key_env,
+                                  max_requests=max_requests, timeout=timeout)
+    return run_update(graphml, prompt, client, language, geometry, rounds,
+                      log)
