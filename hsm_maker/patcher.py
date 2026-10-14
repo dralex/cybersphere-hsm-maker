@@ -349,7 +349,12 @@ class _Patch:
 
     def move(self, moved):
         """Move by a copy into the new parent; the geometry is laid out
-        anew."""
+        anew, unless the parent is new and gets the moved ones all from one
+        old parent: then the drawing goes into it as it is (a wrap)."""
+        wraps = {}
+        for vertex, old in moved:
+            if id(vertex.parent) in self.created:
+                wraps.setdefault(id(vertex.parent), set()).add(id(old.parent))
         for vertex, old in moved:
             element = self.document.find_element_by_id(old.element_id)
             source = self.document.find_element_by_id(old.parent.element_id)
@@ -357,7 +362,8 @@ class _Patch:
             copy = element.copy(target)
             source.remove_element(old.element_id)
             target.add_element(copy)
-            copy.clean_geometry()
+            if len(wraps.get(id(vertex.parent), ())) != 1:
+                copy.clean_geometry()
             self.changes.append(Change('C04', old.element_id, name=vertex.name,
                                        parent=vertex.parent.name))
 

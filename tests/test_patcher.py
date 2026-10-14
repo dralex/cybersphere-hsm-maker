@@ -51,6 +51,16 @@ def states(graphml):
     return found
 
 
+def bends(graphml, transition):
+    """The absolute bends of a transition."""
+    document = CyberiadaML.Document()
+    document.decode(graphml)
+    document.convert_geometry(CyberiadaML.geometryFormatLegacyYED)
+    element = document.find_element_by_id(transition)
+    return [(p.x, p.y) for p in element.get_geometry_polyline()] \
+        if element.has_geometry_polyline() else []
+
+
 def codes(conversion):
     return [c.code for c in conversion.changes]
 
@@ -281,3 +291,13 @@ def test_moved_without_was():
     # the transitions of the moved states stay; only the initial one changed
     assert [c.fields['label'] for c in conversion.changes
             if c.code == 'C07'] == ['initial -> A']
+    # the new composite wraps the drawing as it is, the routes go along
+    before, after = states(original), states(conversion.graphml)
+    a0, b0, a1, b1 = (before[ids['A']], before[ids['B']], after[ids['A']],
+                      after[ids['B']])
+    assert (a1[3:], b1[3:]) == (a0[3:], b0[3:])
+    assert (b1[1] - a1[1], b1[2] - a1[2]) == (b0[1] - a0[1], b0[2] - a0[2])
+    go = '{}-{}'.format(ids['A'], ids['B'])
+    bend0, bend1 = bends(original, go), bends(conversion.graphml, go)
+    assert bend0 and [(x - a1[1], y - a1[2]) for x, y in bend1] == \
+        [(x - a0[1], y - a0[2]) for x, y in bend0]

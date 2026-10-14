@@ -167,8 +167,8 @@ declarations, prompts, colours, meta parameters.
                   1 remove the transitions that went, then the vertices
                     (their transitions and comment links first)
                   2 add the new vertices without geometry, parents first
-                  3 move (copy + remove + add, the geometry cleaned),
-                    rename
+                  3 move (copy + remove + add, the geometry cleaned;
+                    kept in a wrap), rename
                   4 add the new transitions; update the changed actions
                                               |
                  update_geometry: the drawing kept, the new parts laid out
@@ -187,6 +187,10 @@ declarations, prompts, colours, meta parameters.
   is edited in place (it keeps its route); anything else is a removal and
   an addition. A vertex of another
   kind under the same name is removed and added.
+* **Wraps.** Vertices moved from one parent into a new container keep
+  their geometry: the container is laid out around the drawing, which
+  keeps its routes (`libhtreegeom` moves a drawn transition with its ends
+  when they moved alike). Any other move is laid out anew.
 * **Texts.** An action or a guard that differs from the original only as
   the notation normalises it (indentation, `#` lines, spacing) keeps the
   original text.
