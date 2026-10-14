@@ -53,8 +53,8 @@ machine Lift
 | `[GUARD] -> TARGET [/ ACTION]` | a branch of the choice; one guard may be `[else]` | a choice |
 | `history NAME [-> TARGET [/ ACTION]]` | a shallow history with its optional default transition | a state |
 | `deep history NAME [-> TARGET [/ ACTION]]` | a deep history | a state |
-| `entry point NAME [-> TARGET [/ ACTION]]` | an entry point; its transition leads inside | a machine, a state, a submachine |
-| `exit point NAME [-> TARGET [/ ACTION]]` | an exit point; its transition leads outside | a state, a submachine, a machine (no transition) |
+| `entry point NAME [[EVENT] [GUARD] -> TARGET [/ ACTION]]` | an entry point; its transition leads inside | a machine, a state, a submachine |
+| `exit point NAME [[EVENT] [GUARD] -> TARGET [/ ACTION]]` | an exit point; its transition leads outside, it may wait for an event | a state, a submachine, a machine (no transition) |
 | `submachine NAME of MACHINE` | a submachine state standing for another machine of the document | a machine, a state |
 | `entry/ ACTION`, `exit/ ACTION` | the entry and the exit behaviour | a state, once each |
 | `EVENT [GUARD] [propagate\|block] -> TARGET [/ ACTION]` | an external transition from the state | a state, a submachine |
@@ -101,7 +101,8 @@ terminate   = "terminate" declared ;
 choice      = "choice" declared branch { branch } ;
 branch      = guard "->" target [ "/" action ] ;
 history     = [ "deep" ] "history" declared [ "->" target [ "/" action ] ] ;
-point       = ( "entry" | "exit" ) "point" declared [ "->" target [ "/" action ] ] ;
+point       = ( "entry" | "exit" ) "point" declared
+              [ [ event ] [ guard ] "->" target [ "/" action ] ] ;
 submachine  = "submachine" declared "of" name { point | transition } ;
 behaviour   = ( "entry/" | "exit/" ) action ;
 transition  = event [ guard ] [ flag ] "->" target [ "/" action ]   (* external *)
@@ -177,8 +178,9 @@ machine Worker
 * A submachine state stands for the machine named after `of`; its points
   are the points of that machine with the same names. A transition into
   the submachine targets an entry point (`-> Job::Start`); an exit point
-  of the submachine leads on (`exit point Done -> Ready`). The submachine
-  holds no states and no behaviour.
+  of the submachine leads on (`exit point Done -> Ready`), at once or on an
+  event (`exit point Done FINISHED -> Ready`). The submachine holds no
+  states and no behaviour.
 * A machine's own entry point starts it (`entry point Start -> Busy`)
   when a submachine state enters it there; its exit point ends it and has
   no transition. Such a machine runs on its own too, so it has an initial.

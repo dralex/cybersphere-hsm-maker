@@ -420,16 +420,22 @@ def _transition(parent, line, text):
 
 
 def _tail(vertex, line, text, keyword):
-    """The transition written on the line of a vertex: -> TARGET / ACTION."""
+    """The transition written on the line of a vertex: -> TARGET / ACTION;
+    the transition of a point may wait for an event."""
     if not text:
         return
     event, guard, flag, target, action = _split(text)
-    if event or guard is not None or flag or target is None:
+    if target is None or (keyword not in POINTS and
+                          (event or guard is not None or flag)):
         raise _Fail('N34', keyword=keyword)
+    _event(event)
+    if flag and not event:
+        raise _Fail('N30')
     if action and DEFER_RE.match(action):
         raise _Fail('N23')
-    vertex.transitions.append(Transition(line.number, vertex, '', '',
-                                         action or '', target))
+    vertex.transitions.append(Transition(line.number, vertex, event,
+                                         guard or '', action or '', target,
+                                         flag or ''))
 
 
 def _declaration_parts(text, kind):

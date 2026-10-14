@@ -97,7 +97,7 @@ def test_flag_without_guard_and_was():
     ('machine M\n  submachine S of N\n    entry/ x()\n', [('N33', 3)]),
     ('machine M\n  submachine S of N\n    E / x()\n', [('N33', 3)]),
     ('machine M\n  state A\n    history H E -> A\n', [('N34', 3)]),
-    ('machine M\n  state A\n    entry point P [g] -> A\n', [('N34', 3)]),
+    ('machine M\n  state A\n    entry point P E\n', [('N34', 3)]),
     ('machine M\n  state A\n    history\n', [('N07', 3)]),
     ('machine M\n  state A (was)\n', [('N06', 2)]),
 ])
@@ -125,6 +125,18 @@ def test_extended_syntax_issues(text, expected):
 ])
 def test_extended_semantic_issues(text, expected):
     assert codes(text) == expected
+
+
+def test_point_transition_on_an_event():
+    tree = N.parse('machine M\n  initial -> S::In\n  submachine S of N\n'
+                   '    entry point In\n    exit point Out DONE [ok] -> A\n'
+                   '  state A\nmachine N\n  initial -> B\n'
+                   '  entry point In -> B\n  state B\n    E -> Out\n'
+                   '  exit point Out\n')
+    assert N.analyze(tree) == []
+    out = vertex(tree, 'S::Out').transitions[0]
+    assert (out.event, out.guard, out.target.path) == ('DONE', 'ok', 'A')
+    assert '    exit point Out DONE [ok] -> A\n' in N.render(tree)
 
 
 def test_new_diagram_refuses_the_change_forms():
