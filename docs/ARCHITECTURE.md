@@ -361,6 +361,28 @@ Every document passed the strict check of the library and of `cgmlval`
 and opened in `CyberiadaHSM-Editor`. The checks see the form of a diagram,
 not its design: a model may simplify the behaviour of a description.
 
+The update runs of the same day, `--update` with the default options; the
+first three diagrams were made by the maker, the microwave oven is a
+person-drawn diagram of the corpus:
+
+| Diagram | Change | Rounds | Input / output tokens | Result |
+|---|---|---|---|---|
+| pedestrian crossing | a maintenance mode from any phase | 1 | 1719 / 3824 | 6 of 6 drawn states kept |
+| defusable time bomb | a pause while armed, a beep on every tick | 1 | 1637 / 8327 | `Armed` became a composite and grew from its corner |
+| traffic light (ru) | a pedestrian button, a rename | 1 | 2342 / 872 | the rename kept the identifier, all kept |
+| microwave oven (ru) | a child lock | 2 | 3598 / 14716 | the states wrapped in a new composite without `(was)`: matched by name, the drawing and its routes kept inside |
+| microwave oven (ru) | the same, another answer | 1 | 1638 / 13004 | the lock in both states and a guard: 10 of 10 drawn elements kept, the door state grown by its text |
+
+The editor plugin, run in the editor's batch mode (`--run-plugin`):
+`hsm-maker:draw` made a coffee machine of 4 states in 1 round (1438 / 735
+tokens) as a new tab; `hsm-maker:change` on it added a cleaning mode and
+renamed the waiting state in 1 round (1612 / 1929, again 1612 / 469): 11
+of 11 drawn elements kept, the four changes in the diagnostics with their
+element identifiers. The real runs found four defects of the update
+layout, fixed in `libhtreegeom` and `libcyberiadaml` (a new state on a
+drawn route, the routes of a wrapped drawing, the label of a drawn
+transition without one, the ends of a route on a grown state).
+
 ## Reuse
 
 | Need | Existing tool |
