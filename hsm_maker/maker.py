@@ -24,10 +24,14 @@
 document is made: the acceptance is a fact of the checks, never the word of
 the model."""
 
-from .builder import BuildError, GEOMETRY_FULL, build, encode, verify
+from .builder import (BuildError, GEOMETRY_FULL, GEOMETRY_UPDATE, build,
+                      encode, verify)
 from .client import RequestLimitError, Usage
 from .language import AUTO, Texts, choose
-from .notation import ERROR, NotationError, WARNING, analyze, extract, parse
+from .notation import (ERROR, NotationError, WARNING, analyze, extract, parse,
+                       render)
+from .patcher import PatchError, patch
+from .reader import decode, read
 
 ROUNDS = 3
 ACCEPTED = 'accepted'
@@ -45,6 +49,7 @@ class Conversion:
         self.graphml = None
         self.errors = []
         self.warnings = []
+        self.changes = []
 
     @property
     def ok(self):
@@ -61,6 +66,7 @@ class Result:
         self.notation = conversion.notation if conversion else None
         self.errors = conversion.errors if conversion else []
         self.warnings = conversion.warnings if conversion else []
+        self.changes = conversion.changes if conversion else []
         self.rounds = rounds
         self.usage = usage
         self.language = language
@@ -92,6 +98,50 @@ def convert(notation, geometry=GEOMETRY_FULL):
     return conversion
 
 
+class Original:
+    """A diagram to be changed: its text, its tree, its notation and the
+    issues it already has."""
+
+    def __init__(self, graphml):
+        self.graphml = graphml
+        self.tree = read(decode(graphml))
+        self.notation = render(self.tree)
+        self.issues = {i.key for i in analyze(parse(self.notation), True)}
+
+
+def change(graphml, notation, geometry=GEOMETRY_UPDATE, old=None):
+    """Apply one changed notation to the diagram of the GraphML text; the
+    issues the original already has are warnings. Raise ReadError."""
+    old = old if old is not None else Original(graphml)
+    conversion = Conversion(notation)
+    try:
+        conversion.diagram = parse(notation)
+    except NotationError as error:
+        conversion.errors = error.issues
+        return conversion
+    for issue in analyze(conversion.diagram, True):
+        if issue.severity == ERROR and issue.key in old.issues:
+            issue.severity = WARNING
+        if issue.severity == ERROR:
+            conversion.errors.append(issue)
+        else:
+            conversion.warnings.append(issue)
+    if conversion.errors:
+        return conversion
+    try:
+        document, changes = patch(graphml, old.tree, conversion.diagram,
+                                  geometry)
+        text = encode(document)
+        verify(text)
+    except (PatchError, BuildError) as error:
+        conversion.errors = error.issues
+        return conversion
+    conversion.document = document
+    conversion.graphml = text
+    conversion.changes = changes
+    return conversion
+
+
 def feedback(conversion, texts, truncated=False):
     """The message to the model about a rejected conversion."""
     lines = [texts.text('header')]
@@ -114,7 +164,26 @@ def run(prompt, client, language=AUTO, geometry=GEOMETRY_FULL,
     """Ask the model until the diagram is made, at most `rounds` times.
     `log(number, reply, conversion)` is called after every round."""
     language = choose(language, prompt)
+    return _loop(prompt, lambda notation: convert(notation, geometry),
+                 client, Texts(language), rounds, log)
+
+
+def run_update(graphml, prompt, client, language=AUTO,
+               geometry=GEOMETRY_UPDATE, rounds=ROUNDS, log=None):
+    """Ask the model to change the diagram until the change applies, at
+    most `rounds` times. Raise ReadError before the first request."""
+    language = choose(language, prompt)
     texts = Texts(language)
+    old = Original(graphml)
+    question = texts.text('update_request', diagram=old.notation,
+                          change=prompt)
+    return _loop(question,
+                 lambda notation: change(graphml, notation, geometry, old),
+                 client, texts, rounds, log)
+
+
+def _loop(prompt, conversion_of, client, texts, rounds, log):
+    """The rounds: ask, convert the answer, give the issues back."""
     before = Usage(client.usage.requests, client.usage.input_tokens,
                    client.usage.output_tokens)
     question = {'role': 'user', 'content': prompt}
@@ -129,7 +198,7 @@ def run(prompt, client, language=AUTO, geometry=GEOMETRY_FULL,
             reason = REQUEST_LIMIT
             break
         done = number
-        conversion = convert(extract(reply.text), geometry)
+        conversion = conversion_of(extract(reply.text))
         if log is not None:
             log(number, reply, conversion)
         if conversion.ok:
@@ -140,4 +209,5 @@ def run(prompt, client, language=AUTO, geometry=GEOMETRY_FULL,
                     {'role': 'assistant', 'content': reply.text},
                     {'role': 'user',
                      'content': feedback(conversion, texts, reply.truncated)}]
-    return Result(conversion, done, _spent(client, before), language, reason)
+    return Result(conversion, done, _spent(client, before), texts.language,
+                  reason)

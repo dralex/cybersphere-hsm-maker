@@ -88,6 +88,10 @@ class Texts:
             text = self.text('warning', text=text)
         return text
 
+    def change(self, change):
+        """The message of a change of the patch."""
+        return self.text(change.code, **change.fields)
+
     def render(self, issue):
         """line N: message."""
         text = self.text(issue.code, **issue.fields)
