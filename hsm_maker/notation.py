@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 #  Cybersphere HSM Maker
 #
-#  The notation: the tree, the parser and the checks
+#  The notation: the tree, the parser, the checks and the writer
 #
 #  Copyright (C) 2026 Alexey Fedoseev <aleksey@fedoseev.net>
 #
@@ -33,24 +33,49 @@ INITIAL = 'initial'
 FINAL = 'final'
 TERMINATE = 'terminate'
 CHOICE = 'choice'
+HISTORY = 'history'
+DEEP_HISTORY = 'deep history'
+ENTRY_POINT = 'entry point'
+EXIT_POINT = 'exit point'
+SUBMACHINE = 'submachine'
 
 ERROR = 'error'
 WARNING = 'warning'
 
-BLOCKS = (MACHINE, STATE, CHOICE)
-KEYWORDS = (MACHINE, STATE, INITIAL, FINAL, TERMINATE, CHOICE)
-NAMED = (STATE, FINAL, TERMINATE, CHOICE)
-RESERVED = ('entry', 'exit', 'do', 'propagate', 'block', 'defer', 'else')
+PROPAGATE = 'propagate'
+BLOCK = 'block'
+DEFER = 'defer'
+FLAGS = (PROPAGATE, BLOCK)
+
+BLOCKS = (MACHINE, STATE, CHOICE, SUBMACHINE)
+PLAIN = (MACHINE, STATE, CHOICE, FINAL, TERMINATE)
+HISTORIES = (HISTORY, DEEP_HISTORY)
+POINTS = (ENTRY_POINT, EXIT_POINT)
+TAILED = HISTORIES + POINTS
+NAMED = (STATE, FINAL, TERMINATE, CHOICE, SUBMACHINE) + TAILED
+KEYWORDS = (MACHINE, STATE, INITIAL, FINAL, TERMINATE, CHOICE, HISTORY,
+            SUBMACHINE)
+RESERVED = ('entry', 'exit', 'do', PROPAGATE, BLOCK, DEFER, 'else')
 HEADERS = ('name', 'description')
 ELSE = 'else'
 PATH = '::'
+UNNAMED = '_'
 KNOWN_LIMIT = 12
+INDENT = '  '
+CONTINUATION = '    '
 
 WORD_RE = re.compile(r'\w+\Z')
 EVENT_RE = re.compile(r'\w(?:[\w .]*\w)?(?:\(\w+\))?\Z')
 NAME = r'(?:\w+|"[^"\n]*")'
 TARGET_RE = re.compile(NAME + r'(?:::' + NAME + r')*')
-BLOCK_RE = re.compile(r'(?:machine|state|choice)(?:\s|\Z)')
+BLOCK_RE = re.compile(r'(?:machine|state|choice|submachine)(?:\s|\Z)')
+KIND_RE = re.compile(r'(deep\s+history|history|entry\s+point|exit\s+point|'
+                     r'submachine|machine|state|choice|final|terminate)'
+                     r'(?=\s|\Z)')
+NAME_TOKEN_RE = re.compile(r'"[^"\n]*"?|[^\s(]+')
+WAS_RE = re.compile(r'\(\s*was\s+([^)\n]*?)\s*\)')
+OF_RE = re.compile(r'of\s+(\S.*)\Z')
+FLAG_RE = re.compile(r'(propagate|block)(?=\s|->|/|\Z)')
 HEADER_RE = re.compile(r'(name|description):(.*)\Z', re.S)
 BEHAVIOUR_RE = re.compile(r'(entry|exit)\s*/(.*)\Z', re.S)
 DO_RE = re.compile(r'do\s*/')
@@ -69,6 +94,13 @@ class Issue:
         self.severity = severity
         self.fields = fields
 
+    @property
+    def key(self):
+        """The issue without its line: the same issue in another text."""
+        return (self.code, tuple(sorted((k, str(v)) for k, v in
+                                        self.fields.items()
+                                        if k not in ('first', 'lines'))))
+
     def __repr__(self):
         return 'Issue({!r}, {!r}, {!r})'.format(self.code, self.line,
                                                 self.fields)
@@ -83,7 +115,7 @@ class NotationError(Exception):
 
 
 class Vertex:
-    """A machine, a state or a pseudostate."""
+    """A machine, a state, a submachine, a pseudostate or a point."""
 
     def __init__(self, kind, name, line, parent=None):
         self.kind = kind
@@ -94,6 +126,9 @@ class Vertex:
         self.behaviours = []
         self.internals = []
         self.transitions = []
+        self.reference = None
+        self.was = None
+        self.element_id = None
         if parent is not None:
             parent.children.append(self)
 
@@ -146,14 +181,16 @@ class Transition:
     """A transition, internal when it has no target."""
 
     def __init__(self, line, source, event='', guard='', action='',
-                 target_ref=None):
+                 target_ref=None, propagation=''):
         self.line = line
         self.source = source
         self.event = event
         self.guard = guard
         self.action = action
         self.target_ref = target_ref
+        self.propagation = propagation
         self.target = None
+        self.element_id = None
 
 
 class Diagram:
@@ -163,6 +200,7 @@ class Diagram:
         self.name = None
         self.description = None
         self.machines = []
+        self.notes = []
 
     def walk(self):
         for machine in self.machines:
@@ -241,37 +279,71 @@ def _name(text, keyword):
     return name
 
 
+def _declared(text, keyword):
+    """NAME [(was OLD)] at the start of the text: (name, was, the rest)."""
+    text = text.lstrip()
+    if not text:
+        raise _Fail('N07', keyword=keyword)
+    token = NAME_TOKEN_RE.match(text)
+    name = _name(token.group(0), keyword)
+    rest = text[token.end():]
+    was = None
+    match = WAS_RE.match(rest.lstrip())
+    if match:
+        was = match.group(1)
+        if not was or TARGET_RE.fullmatch(was) is None:
+            raise _Fail('N06', text=was)
+        rest = rest.lstrip()[match.end():]
+    return name, was, rest.strip()
+
+
 def _skip(text, i):
     while i < len(text) and text[i].isspace():
         i += 1
     return i
 
 
+def _guard(text, i):
+    """The guard at text[i] == '[': (the guard, the index after it)."""
+    end = len(text)
+    k = i + 1
+    while k < end and text[k] != ']':
+        if text[k] == '\\' and k + 1 < end and text[k + 1] in '[]':
+            k += 2
+            continue
+        if text[k] == '[':
+            raise _Fail('N16')
+        k += 1
+    if k >= end:
+        raise _Fail('N15')
+    guard = ' '.join(text[i + 1:k].split())
+    if not guard:
+        raise _Fail('N17')
+    return guard, k + 1
+
+
 def _split(text):
-    """EVENT [GUARD] -> TARGET / ACTION: (event, guard, target, action);
-    the absent parts are None, the event is '' when absent."""
+    """EVENT [GUARD] [FLAG] -> TARGET / ACTION: (event, guard, flag, target,
+    action); the absent parts are None, the event is '' when absent."""
     end = len(text)
     i = 0
     while i < end and text[i] not in '[/' and not text.startswith('->', i):
         i += 1
     event = text[:i].strip()
+    flag = None
+    words = event.split()
+    if len(words) > 1 and words[-1] in FLAGS:
+        flag = words[-1]
+        event = event[:event.rfind(flag)].strip()
     i = _skip(text, i)
     guard = None
     if i < end and text[i] == '[':
-        k = i + 1
-        while k < end and text[k] != ']':
-            if text[k] == '\\' and k + 1 < end and text[k + 1] in '[]':
-                k += 2
-                continue
-            if text[k] == '[':
-                raise _Fail('N16')
-            k += 1
-        if k >= end:
-            raise _Fail('N15')
-        guard = ' '.join(text[i + 1:k].split())
-        if not guard:
-            raise _Fail('N17')
-        i = _skip(text, k + 1)
+        guard, i = _guard(text, i)
+        i = _skip(text, i)
+    match = FLAG_RE.match(text, i)
+    if match and flag is None:
+        flag = match.group(1)
+        i = _skip(text, match.end())
     target = None
     if text.startswith('->', i):
         i = _skip(text, i + 2)
@@ -286,9 +358,7 @@ def _split(text):
         i = end
     if i < end:
         raise _Fail('N20', text=text[i:].split('\n')[0])
-    if action and DEFER_RE.match(action):
-        raise _Fail('N23')
-    return event, guard, target, action
+    return event, guard, flag, target, action
 
 
 def _event(event):
@@ -313,51 +383,103 @@ def _header(diagram, line, key, value, issues):
 
 
 def _transition(parent, line, text):
-    event, guard, target, action = _split(text)
+    event, guard, flag, target, action = _split(text)
     _event(event)
     if parent.kind == CHOICE:
-        if event or target is None:
+        if event or flag or target is None:
             raise _Fail('N12')
         if guard is None:
             raise _Fail('N25')
-    elif parent.kind != STATE:
+    elif parent.kind not in (STATE, SUBMACHINE):
         raise _Fail('N10')
-    elif target is None:
+    propagation = flag or ''
+    if action == DEFER:
+        if target is not None or flag:
+            raise _Fail('N31')
+        propagation = DEFER
+        action = ''
+    elif action and DEFER_RE.match(action):
+        raise _Fail('N23')
+    if flag and not event:
+        raise _Fail('N30')
+    if target is None:
+        if parent.kind == SUBMACHINE:
+            raise _Fail('N33')
         if not event:
             raise _Fail('N29')
         if action is None:
             raise _Fail('N19', event=event)
         parent.internals.append(Transition(line.number, parent, event,
-                                           guard or '', action))
+                                           guard or '', action, None,
+                                           propagation))
         return
     parent.transitions.append(Transition(line.number, parent, event,
-                                         guard or '', action or '', target))
+                                         guard or '', action or '', target,
+                                         propagation))
 
 
-def _declaration(diagram, stack, line, parent, keyword):
-    first, _, rest = line.text.partition('\n')
-    if rest:
-        raise _Fail('N26', keyword=keyword, name=first[len(keyword):].strip(),
-                    text=rest.split('\n')[0].strip())
-    name = _name(first[len(keyword):], keyword)
-    if keyword == MACHINE:
+def _tail(vertex, line, text, keyword):
+    """The transition written on the line of a vertex: -> TARGET / ACTION."""
+    if not text:
+        return
+    event, guard, flag, target, action = _split(text)
+    if event or guard is not None or flag or target is None:
+        raise _Fail('N34', keyword=keyword)
+    if action and DEFER_RE.match(action):
+        raise _Fail('N23')
+    vertex.transitions.append(Transition(line.number, vertex, '', '',
+                                         action or '', target))
+
+
+def _declaration_parts(text, kind):
+    """The name, the (was OLD), the tail and the reference of a declaration."""
+    reference = None
+    if kind in PLAIN:
+        first, _, rest = text.partition('\n')
+        if rest:
+            raise _Fail('N26', keyword=kind, name=first.strip(),
+                        text=rest.split('\n')[0].strip())
+        name, was, tail = _declared(first, kind)
+        if tail:
+            raise _Fail('N06', text=first.strip())
+    else:
+        name, was, tail = _declared(text, kind)
+        if kind == SUBMACHINE:
+            match = OF_RE.match(tail)
+            if not match:
+                raise _Fail('N32')
+            reference = _name(match.group(1), kind)
+    return name, was, tail, reference
+
+
+def _declaration(diagram, stack, line, parent, kind, prefix):
+    name, was, tail, reference = _declaration_parts(line.text[prefix:], kind)
+    if kind == MACHINE:
         if parent is not None:
             raise _Fail('N03')
         vertex = Vertex(MACHINE, name, line.number)
         diagram.machines.append(vertex)
     elif parent.kind == CHOICE:
         raise _Fail('N12')
+    elif parent.kind == SUBMACHINE and kind not in POINTS:
+        raise _Fail('N33')
     else:
-        vertex = Vertex(keyword, name, line.number, parent)
-    if keyword in BLOCKS:
+        vertex = Vertex(kind, name, line.number, parent)
+    vertex.was = was
+    vertex.reference = reference
+    if kind in TAILED:
+        _tail(vertex, line, tail, kind)
+    if kind in BLOCKS:
         stack.append((line.indent, vertex))
 
 
 def _initial(parent, line):
     if parent.kind == CHOICE:
         raise _Fail('N12')
-    event, guard, target, action = _split(line.text[len(INITIAL):])
-    if event or guard is not None or target is None:
+    if parent.kind == SUBMACHINE:
+        raise _Fail('N33')
+    event, guard, flag, target, action = _split(line.text[len(INITIAL):])
+    if event or guard is not None or flag or target is None:
         raise _Fail('N24')
     vertex = Vertex(INITIAL, None, line.number, parent)
     vertex.transitions.append(Transition(line.number, vertex, '', '',
@@ -365,6 +487,8 @@ def _initial(parent, line):
 
 
 def _behaviour(parent, line, match):
+    if parent.kind == SUBMACHINE:
+        raise _Fail('N33')
     if parent.kind != STATE:
         raise _Fail('N11')
     action = match.group(2).strip()
@@ -379,6 +503,7 @@ def _statement(diagram, stack, line, issues):
         stack.pop()
     parent = stack[-1][1] if stack else None
     keyword = text.split(None, 1)[0] if text.split() else ''
+    kind = KIND_RE.match(text)
     if parent is None:
         header = HEADER_RE.match(text)
         if header:
@@ -386,8 +511,9 @@ def _statement(diagram, stack, line, issues):
             return
         if keyword != MACHINE:
             raise _Fail('N02')
-    if keyword in (MACHINE, STATE, CHOICE, FINAL, TERMINATE):
-        _declaration(diagram, stack, line, parent, keyword)
+    if kind:
+        _declaration(diagram, stack, line, parent,
+                     ' '.join(kind.group(1).split()), kind.end())
     elif keyword == INITIAL or keyword.startswith(INITIAL + '->'):
         _initial(parent, line)
     elif DO_RE.match(text):
@@ -432,23 +558,28 @@ def _known(name, machine):
     return ', '.join(known[:KNOWN_LIMIT])
 
 
-def _resolve(transition, issues):
-    ref = transition.target_ref
-    source = transition.source
+def _find(source, ref):
+    """The vertices a reference from the source names: the nearest level
+    first, then the whole machine; [] when none."""
     machine = source.machine
     parts = [p[1:-1] if p.startswith('"') else p for p in ref.split(PATH)]
     named = [v for v in machine.walk() if v.kind in NAMED]
     if len(parts) > 1:
-        found = [v for v in named if v.path == PATH.join(parts)]
-    else:
-        level = source.parent
-        while level is not None:
-            near = [c for c in level.children
-                    if c.kind in NAMED and c.name == parts[0]]
-            if near:
-                return near[0]
-            level = level.parent
-        found = [v for v in named if v.name == parts[0]]
+        return [v for v in named if v.path == PATH.join(parts)]
+    level = source.parent
+    while level is not None:
+        near = [c for c in level.children
+                if c.kind in NAMED and c.name == parts[0]]
+        if near:
+            return near[:1]
+        level = level.parent
+    return [v for v in named if v.name == parts[0]]
+
+
+def _resolve(transition, issues):
+    ref = transition.target_ref
+    machine = transition.source.machine
+    found = _find(transition.source, ref)
     if len(found) == 1:
         return found[0]
     if found:
@@ -464,20 +595,39 @@ def _resolve(transition, issues):
     return None
 
 
+def _placed(vertex, child, issues):
+    """The placement rules of a history and a point in their container."""
+    if child.kind in HISTORIES and vertex.kind == MACHINE:
+        issues.append(Issue('S12', child.line))
+    if child.kind == ENTRY_POINT and vertex.kind == SUBMACHINE and \
+       child.transitions:
+        issues.append(Issue('S17', child.line))
+    if child.kind == EXIT_POINT and vertex.kind == MACHINE and \
+       child.transitions:
+        issues.append(Issue('S18', child.line))
+
+
 def _level(vertex, issues):
-    names = {}
-    initial = None
+    first = {}
     for child in vertex.children:
         if child.kind == INITIAL:
-            if initial is not None:
-                issues.append(Issue('S03', child.line, first=initial))
+            if INITIAL in first:
+                issues.append(Issue('S03', child.line, first=first[INITIAL]))
             else:
-                initial = child.line
-        elif child.name in names:
+                first[INITIAL] = child.line
+            continue
+        if child.kind in HISTORIES:
+            if child.kind in first:
+                issues.append(Issue('S13', child.line, keyword=child.kind,
+                                    name=vertex.name, first=first[child.kind]))
+            else:
+                first[child.kind] = child.line
+        if (NAMED, child.name) in first:
             issues.append(Issue('S02', child.line, name=child.name,
-                                first=names[child.name]))
+                                first=first[(NAMED, child.name)]))
         else:
-            names[child.name] = child.line
+            first[(NAMED, child.name)] = child.line
+        _placed(vertex, child, issues)
     seen = set()
     for behaviour in vertex.behaviours:
         if behaviour.kind in seen:
@@ -485,6 +635,26 @@ def _level(vertex, issues):
                                 keyword=behaviour.kind + '/',
                                 name=vertex.name))
         seen.add(behaviour.kind)
+
+
+def _submachine(vertex, machines, issues):
+    target = machines.get(vertex.reference)
+    if target is None:
+        issues.append(Issue('S14', vertex.line, name=vertex.name,
+                            machine=vertex.reference))
+        return
+    if target is vertex.machine:
+        issues.append(Issue('S15', vertex.line, name=vertex.name))
+        return
+    points = [c for c in target.children if c.kind in POINTS]
+    for child in vertex.children:
+        if child.kind not in POINTS:
+            continue
+        if not any(p.kind == child.kind and p.name == child.name
+                   for p in points):
+            issues.append(Issue('S16', child.line, point=child.name,
+                                machine=target.name,
+                                known=', '.join(p.name for p in points)))
 
 
 def _transitions(machine, issues):
@@ -525,6 +695,7 @@ def _unreachable(machine):
     seen = set()
     todo = [t.target for v in machine.children if v.kind == INITIAL
             for t in v.transitions]
+    todo.extend(v for v in machine.children if v.kind == ENTRY_POINT)
     while todo:
         vertex = todo.pop()
         if vertex is None or id(vertex) in seen:
@@ -534,21 +705,33 @@ def _unreachable(machine):
         for child in vertex.children:
             if child.kind == INITIAL:
                 todo.extend(t.target for t in child.transitions)
+            elif child.kind == EXIT_POINT and vertex.kind == SUBMACHINE:
+                todo.append(child)
         if vertex.parent is not None and vertex.parent.kind != MACHINE:
             todo.append(vertex.parent)
     return [v for v in machine.walk() if v.kind in NAMED and id(v) not in seen]
 
 
-def analyze(diagram):
+def _new_only(diagram, issues):
+    for vertex in diagram.walk():
+        if vertex.was is not None:
+            issues.append(Issue('U01', vertex.line, old=vertex.was))
+        if vertex.name and vertex.name.startswith(UNNAMED):
+            issues.append(Issue('U02', vertex.line, name=vertex.name))
+
+
+def analyze(diagram, changing=False):
     """Resolve the targets and check the semantics; return the issues."""
     issues = []
     first = {}
+    machines = {}
     for machine in diagram.machines:
         if machine.name in first:
             issues.append(Issue('S01', machine.line, name=machine.name,
                                 first=first[machine.name]))
         else:
             first[machine.name] = machine.line
+            machines[machine.name] = machine
         if not machine.children:
             issues.append(Issue('S05', machine.line, name=machine.name))
         elif not any(c.kind == INITIAL for c in machine.children):
@@ -556,9 +739,108 @@ def analyze(diagram):
         for vertex in machine.walk():
             _level(vertex, issues)
         _transitions(machine, issues)
+    for vertex in diagram.walk():
+        if vertex.kind == SUBMACHINE:
+            _submachine(vertex, machines, issues)
+    if not changing:
+        _new_only(diagram, issues)
     if not issues:
         for machine in diagram.machines:
             for vertex in _unreachable(machine):
                 issues.append(Issue('W01', vertex.line, WARNING,
                                     name=vertex.path))
     return _ordered(issues)
+
+
+def _written_name(name):
+    return name if WORD_RE.match(name) else '"' + name + '"'
+
+
+def _reference(transition):
+    """The shortest text that names the target from the source."""
+    target = transition.target
+    if target is None:
+        return transition.target_ref
+    found = _find(transition.source, _written_name(target.name))
+    if len(found) == 1 and found[0] is target:
+        return _written_name(target.name)
+    return PATH.join(_written_name(n) for n in target.path.split(PATH))
+
+
+def _with_action(head, action, pad, lines):
+    """A line ending with an action; the further action lines continue it."""
+    action_lines = action.split('\n') if action else ['']
+    lines.append(pad + (head + ' ' + action_lines[0]).rstrip())
+    for rest in action_lines[1:]:
+        lines.append(pad + CONTINUATION + rest if rest else '')
+
+
+def _transition_text(transition, pad, lines, prefix=''):
+    parts = [prefix] if prefix else []
+    if transition.event:
+        parts.append(transition.event)
+    if transition.guard:
+        parts.append('[' + transition.guard + ']')
+    if transition.propagation in FLAGS:
+        parts.append(transition.propagation)
+    internal = transition.target is None and transition.target_ref is None
+    if not internal:
+        parts.append('-> ' + _reference(transition))
+    head = ' '.join(parts)
+    if transition.propagation == DEFER:
+        lines.append(pad + head + ' / ' + DEFER)
+    elif transition.action or internal:
+        _with_action(head + ' /', transition.action, pad, lines)
+    else:
+        lines.append(pad + head)
+
+
+def _declaration_text(vertex):
+    name = _written_name(vertex.name) if vertex.name else ''
+    if vertex.was:
+        name += ' (was ' + vertex.was + ')'
+    if vertex.kind == SUBMACHINE:
+        return 'submachine {} of {}'.format(name,
+                                            _written_name(vertex.reference))
+    return vertex.kind + ' ' + name
+
+
+def _render(vertex, depth, notes, lines):
+    pad = INDENT * depth
+    inner = INDENT * (depth + 1)
+    if vertex.kind == INITIAL:
+        _transition_text(vertex.transitions[0], pad, lines, INITIAL)
+        return
+    if vertex.kind in TAILED and vertex.transitions:
+        _transition_text(vertex.transitions[0], pad, lines,
+                         _declaration_text(vertex))
+        return
+    lines.append(pad + _declaration_text(vertex))
+    for text in notes.get(id(vertex), []):
+        lines.append(inner + '# note: ' + text)
+    for behaviour in vertex.behaviours:
+        _with_action(behaviour.kind + '/', behaviour.action, inner, lines)
+    for transition in vertex.internals:
+        _transition_text(transition, inner, lines)
+    for child in vertex.children:
+        _render(child, depth + 1, notes, lines)
+    for transition in vertex.transitions:
+        _transition_text(transition, inner, lines)
+
+
+def render(diagram):
+    """The notation text of a tree, the notes as `# note:` lines."""
+    lines = []
+    notes = {}
+    for vertex, text in diagram.notes:
+        notes.setdefault(id(vertex) if vertex is not None else None,
+                         []).append(text)
+    if diagram.name:
+        _with_action('name:', diagram.name, '', lines)
+    if diagram.description:
+        _with_action('description:', diagram.description, '', lines)
+    for text in notes.get(None, []):
+        lines.append('# note: ' + text)
+    for machine in diagram.machines:
+        _render(machine, 0, notes, lines)
+    return '\n'.join(lines) + '\n'

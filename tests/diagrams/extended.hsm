@@ -1,0 +1,36 @@
+# History, points, a submachine and the event propagation
+name: Extended
+machine Caller
+  initial -> Ready
+  state Ready
+    GO -> Job::Start
+    RESUME -> Oven::Resume
+    PAUSE / defer
+  submachine Job of Worker
+    entry point Start
+    exit point Done -> Ready
+    exit point Failed -> Oven
+    ABORT -> Ready
+  state Oven
+    initial -> Heating
+    history H -> Heating
+    entry point Resume -> Heating / resume()
+    exit point Stop -> Ready
+    state Heating
+      entry/ heater_on()
+      TICK [t > 0] propagate / t -= 1
+      [t == 0] -> Stop
+    DOOR block -> Oven::H
+machine Worker
+  initial -> Busy
+  entry point Start -> Busy
+  state Busy
+    entry/ work()
+    deep history Deep
+    state Step
+    initial -> Step
+    WORK_DONE -> Done
+    WORK_FAILED -> Failed
+    RETRY -> Deep
+  exit point Done
+  exit point Failed

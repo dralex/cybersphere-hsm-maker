@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns">
+  <data key="gFormat">Cyberiada-GraphML-1.0</data>
+  <key id="gFormat" for="graphml" attr.name="format" attr.type="string"/>
+  <key id="dName" for="graph" attr.name="name" attr.type="string"/>
+  <key id="dName" for="node" attr.name="name" attr.type="string"/>
+  <key id="dStateMachine" for="graph" attr.name="stateMachine" attr.type="string"/>
+  <key id="dRegion" for="graph" attr.name="region" attr.type="string"/>
+  <key id="dSubmachineState" for="node" attr.name="submachineState" attr.type="string"/>
+  <key id="dGeometry" for="graph" attr.name="geometry"/>
+  <key id="dGeometry" for="node" attr.name="geometry"/>
+  <key id="dGeometry" for="edge" attr.name="geometry"/>
+  <key id="dSourcePoint" for="edge" attr.name="sourcePoint"/>
+  <key id="dTargetPoint" for="edge" attr.name="targetPoint"/>
+  <key id="dLabelGeometry" for="edge" attr.name="labelGeometry"/>
+  <key id="dNote" for="node" attr.name="note" attr.type="string"/>
+  <key id="dVertex" for="node" attr.name="vertex" attr.type="string"/>
+  <key id="dData" for="node" attr.name="data" attr.type="string"/>
+  <key id="dData" for="edge" attr.name="data" attr.type="string"/>
+  <key id="dPivot" for="edge" attr.name="pivot" attr.type="string"/>
+  <key id="dChunk" for="edge" attr.name="chunk" attr.type="string"/>
+  <key id="dCollapsed" for="node" attr.name="collapsed" attr.type="string"/>
+  <key id="dMarkup" for="node" attr.name="markup" attr.type="string"/>
+  <key id="dColor" for="node" attr.name="color" attr.type="string"/>
+  <key id="dColor" for="edge" attr.name="color" attr.type="string"/>
+  <key id="dFormalName" for="graph" attr.name="formalName" attr.type="string"/>
+  <key id="dFormalName" for="node" attr.name="formalName" attr.type="string"/>
+  <graph id="G0" edgedefault="directed">
+    <data key="dStateMachine"/>
+    <data key="dName">Caller</data>
+    <node id="nMeta">
+      <data key="dNote">formal</data>
+      <data key="dName">CGML_META</data>
+      <data key="dData">standardVersion/ 1.0
+
+name/ Extended
+
+geometry/ none
+
+transitionOrder/ actionFirst
+
+eventPropagation/ block</data>
+    </node>
+    <node id="n0">
+      <data key="dVertex">initial</data>
+    </node>
+    <node id="n1">
+      <data key="dName">Ready</data>
+      <data key="dData">PAUSE/ defer</data>
+    </node>
+    <node id="n2">
+      <data key="dSubmachineState">G1</data>
+      <data key="dName">Job</data>
+      <graph id="n2:" edgedefault="directed">
+        <node id="n2::n0">
+          <data key="dVertex">entryPoint</data>
+          <data key="dName">Start</data>
+        </node>
+        <node id="n2::n1">
+          <data key="dVertex">exitPoint</data>
+          <data key="dName">Done</data>
+        </node>
+        <node id="n2::n2">
+          <data key="dVertex">exitPoint</data>
+          <data key="dName">Failed</data>
+        </node>
+      </graph>
+    </node>
+    <node id="n3">
+      <data key="dName">Oven</data>
+      <graph id="n3:" edgedefault="directed">
+        <node id="n3::n0">
+          <data key="dVertex">initial</data>
+        </node>
+        <node id="n3::n1">
+          <data key="dVertex">shallowHistory</data>
+          <data key="dName">H</data>
+        </node>
+        <node id="n3::n2">
+          <data key="dVertex">entryPoint</data>
+          <data key="dName">Resume</data>
+        </node>
+        <node id="n3::n3">
+          <data key="dVertex">exitPoint</data>
+          <data key="dName">Stop</data>
+        </node>
+        <node id="n3::n4">
+          <data key="dName">Heating</data>
+          <data key="dData">entry/
+heater_on()
+
+TICK [t &gt; 0] propagate/
+t -= 1
+</data>
+        </node>
+      </graph>
+    </node>
+    <edge id="n0-n1" source="n0" target="n1">
+    </edge>
+    <edge id="n1-n2::n0" source="n1" target="n2::n0">
+      <data key="dData">GO/</data>
+    </edge>
+    <edge id="n1-n3::n2" source="n1" target="n3::n2">
+      <data key="dData">RESUME/</data>
+    </edge>
+    <edge id="n2-n1" source="n2" target="n1">
+      <data key="dData">ABORT/</data>
+    </edge>
+    <edge id="n2::n1-n1" source="n2::n1" target="n1">
+    </edge>
+    <edge id="n2::n2-n3" source="n2::n2" target="n3">
+    </edge>
+    <edge id="n3-n3::n1" source="n3" target="n3::n1">
+      <data key="dData">DOOR block/</data>
+    </edge>
+    <edge id="n3::n0-n3::n4" source="n3::n0" target="n3::n4">
+    </edge>
+    <edge id="n3::n1-n3::n4" source="n3::n1" target="n3::n4">
+    </edge>
+    <edge id="n3::n2-n3::n4" source="n3::n2" target="n3::n4">
+      <data key="dData">/
+resume()
+</data>
+    </edge>
+    <edge id="n3::n3-n1" source="n3::n3" target="n1">
+    </edge>
+    <edge id="n3::n4-n3::n3" source="n3::n4" target="n3::n3">
+      <data key="dData">[t == 0]/</data>
+    </edge>
+  </graph>
+  <graph id="G1" edgedefault="directed">
+    <data key="dStateMachine"/>
+    <data key="dName">Worker</data>
+    <node id="n4">
+      <data key="dVertex">initial</data>
+    </node>
+    <node id="n5">
+      <data key="dVertex">entryPoint</data>
+      <data key="dName">Start</data>
+    </node>
+    <node id="n6">
+      <data key="dName">Busy</data>
+      <data key="dData">entry/
+work()
+</data>
+      <graph id="n6:" edgedefault="directed">
+        <node id="n6::n0">
+          <data key="dVertex">deepHistory</data>
+          <data key="dName">Deep</data>
+        </node>
+        <node id="n6::n1">
+          <data key="dName">Step</data>
+        </node>
+        <node id="n6::n2">
+          <data key="dVertex">initial</data>
+        </node>
+      </graph>
+    </node>
+    <node id="n7">
+      <data key="dVertex">exitPoint</data>
+      <data key="dName">Done</data>
+    </node>
+    <node id="n8">
+      <data key="dVertex">exitPoint</data>
+      <data key="dName">Failed</data>
+    </node>
+    <edge id="n4-n6" source="n4" target="n6">
+    </edge>
+    <edge id="n5-n6" source="n5" target="n6">
+    </edge>
+    <edge id="n6-n7" source="n6" target="n7">
+      <data key="dData">WORK_DONE/</data>
+    </edge>
+    <edge id="n6-n8" source="n6" target="n8">
+      <data key="dData">WORK_FAILED/</data>
+    </edge>
+    <edge id="n6-n6::n0" source="n6" target="n6::n0">
+      <data key="dData">RETRY/</data>
+    </edge>
+    <edge id="n6::n2-n6::n1" source="n6::n2" target="n6::n1">
+    </edge>
+  </graph>
+</graphml>

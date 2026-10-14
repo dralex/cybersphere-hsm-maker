@@ -72,7 +72,7 @@ def test_every_code_has_a_text():
     used = set()
     for path in SOURCES:
         with open(path, encoding='utf-8') as source:
-            used |= set(re.findall(r"(?:Issue|_Fail)\('([A-Z]\d\d)'",
+            used |= set(re.findall(r"(?:Issue|_Fail|Change)\('([A-Z]\d\d)'",
                                    source.read()))
     assert used and used <= set(L.Texts('en').messages)
 
@@ -80,12 +80,13 @@ def test_every_code_has_a_text():
 def test_documented_texts():
     with open(os.path.join(ROOT, 'docs', 'NOTATION.md'),
               encoding='utf-8') as source:
-        table = dict(re.findall(r'^\| ([NRSWB]\d\d) \| (.*) \|$',
+        table = dict(re.findall(r'^\| ([NRSWUB]\d\d) \| (.*) \|$',
                                 source.read(), re.M))
     english = L.Texts('en').messages
     assert {code: text.replace('\\\\', '\\') for code, text in
             table.items()} == {code: english[code] for code in table}
-    assert set(table) == {k for k in english if re.match(r'[A-Z]\d\d$', k)}
+    # the change reports (C) are documented in API.md, not in the notation
+    assert set(table) == {k for k in english if re.match(r'[A-BD-Z]\d\d$', k)}
 
 
 def test_system_prompts_without_header():
