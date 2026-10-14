@@ -181,7 +181,9 @@ declarations, prompts, colours, meta parameters.
   and its name; the initial by its container; a `_n` name by the unnamed
   element it was given to. A transition by its source, event, guard,
   propagation and target: the same key with another action is an action
-  change, anything else is a removal and an addition. A vertex of another
+  change; a transition with the same ends and another event, guard or flag
+  is edited in place (it keeps its route); anything else is a removal and
+  an addition. A vertex of another
   kind under the same name is removed and added.
 * **Texts.** An action or a guard that differs from the original only as
   the notation normalises it (indentation, `#` lines, spacing) keeps the

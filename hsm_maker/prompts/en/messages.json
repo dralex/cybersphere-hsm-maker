@@ -8,7 +8,7 @@
  "C05": "changed the behaviour of '{name}'",
  "C06": "added the transition {label}",
  "C07": "removed the transition {label}",
- "C08": "changed the action of the transition {label}",
+ "C08": "changed the label of the transition {label}",
  "N01": "tab in the indentation; indent with spaces",
  "N02": "expected 'machine NAME' at the top level",
  "N03": "a machine must be at the top level",

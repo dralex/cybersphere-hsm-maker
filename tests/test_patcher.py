@@ -242,3 +242,24 @@ def test_naming_issues():
         conversion = M.change(LIFT, text, old=old)
         assert not conversion.ok
         assert code in [i.code for i in conversion.errors], (code, conversion.errors)
+
+
+def test_guard_edited_in_place():
+    old = M.Original(LIFT)
+    conversion = M.change(LIFT, old.notation.replace(
+        'TIMEOUT -> Idle', 'TIMEOUT [doors_free] -> Idle'), old=old)
+    assert conversion.ok, conversion.errors
+    assert codes(conversion) == ['C08']
+    timeout = conversion.changes[0].element
+
+    def route(graphml):
+        document = CyberiadaML.Document()
+        document.decode(graphml)
+        document.convert_geometry(CyberiadaML.geometryFormatLegacyYED)
+        transition = document.find_element_by_id(timeout)
+        source = transition.get_geometry_source_point()
+        target = transition.get_geometry_target_point()
+        return (transition.get_action().get_guard(), round(source.x),
+                round(source.y), round(target.x), round(target.y))
+    assert route(conversion.graphml)[1:] == route(LIFT)[1:]
+    assert route(conversion.graphml)[0] == 'doors_free'

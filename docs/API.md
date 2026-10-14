@@ -106,7 +106,8 @@ The difference of two trees applied to a document.
 * `Change(code, element=None, **fields)` - one change: the code of the
   message (`C01` added, `C02` removed, `C03` renamed, `C04` moved, `C05`
   behaviour changed, `C06` transition added, `C07` transition removed,
-  `C08` transition action changed), the id of the element in the result.
+  `C08` transition label changed: the same ends, another event, guard,
+  flag or action, edited in place), the id of the element in the result.
 * `PatchError(issues)` - the new tree names the old one wrongly (`U02` -
   `U04`).
 * `patch(graphml, old, new, geometry=GEOMETRY_UPDATE)` - decode the

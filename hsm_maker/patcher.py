@@ -226,7 +226,9 @@ class _Patch:
 
     def transitions(self):
         """The pairs of the old and the new transitions, the removed old
-        ones and the added new ones."""
+        ones and the added new ones. A transition that keeps its ends but
+        changes its event, guard or flag is the same one edited in place:
+        it keeps its route."""
         def ident(vertex):
             old = self.match.get(id(vertex))
             return ('old', old.element_id) if old is not None \
@@ -239,7 +241,7 @@ class _Patch:
                        _guard(transition.guard), transition.propagation,
                        ('old', transition.target.element_id))
                 olds.setdefault(key, []).append(transition)
-        pairs, added = [], []
+        pairs, rest = [], []
         for vertex in self.new.walk():
             for transition in vertex.transitions:
                 key = (ident(vertex), transition.event,
@@ -248,8 +250,24 @@ class _Patch:
                 if olds.get(key):
                     pairs.append((olds[key].pop(0), transition))
                 else:
-                    added.append(transition)
-        removed = [t for group in olds.values() for t in group]
+                    rest.append(transition)
+        ends = {}
+        for group in olds.values():
+            for transition in group:
+                ends.setdefault((transition.source.element_id,
+                                 transition.target.element_id),
+                                []).append(transition)
+        added = []
+        for transition in rest:
+            old_source = self.match.get(id(transition.source))
+            old_target = self.match.get(id(transition.target))
+            same = ends.get((old_source.element_id, old_target.element_id)) \
+                if old_source is not None and old_target is not None else None
+            if same:
+                pairs.append((same.pop(0), transition))
+            else:
+                added.append(transition)
+        removed = [t for group in ends.values() for t in group]
         return pairs, removed, added
 
     def apply(self):
@@ -271,7 +289,9 @@ class _Patch:
         self.rename_and_act()
         self.add_transitions(added)
         for old, new in pairs:
-            if not same_text(old.action, new.action):
+            if (old.event, _guard(old.guard), old.propagation) != \
+               (new.event, _guard(new.guard), new.propagation) or \
+               not same_text(old.action, new.action):
                 self.update_action(old, new)
         self.attach(links)
         self.meta()
