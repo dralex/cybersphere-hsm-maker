@@ -7,20 +7,30 @@ description and the diagram are sent to the model server you choose.
 
 ## Installation
 
-1. Install the maker and the `CyberiadaML` binding for the Python the
-   editor runs, for example a virtual environment:
+* The Debian package `python3-cybersphere-hsm-maker` installs the plugin
+  with the maker: nothing else to do. `python3` of the system runs it.
+* With pip, install the maker and the `CyberiadaML` binding for one Python,
+  for example a virtual environment, then let the maker install the plugin:
 
-       python3 -m venv ~/hsm-venv
-       ~/hsm-venv/bin/pip install /path/to/cybersphere-hsm-maker
-       # the binding: its own build or package (libcyberiadamlpp-py)
+      python3 -m venv --system-site-packages ~/hsm-venv
+      ~/hsm-venv/bin/pip install /path/to/cybersphere-hsm-maker
+      ~/hsm-venv/bin/hsm-maker --install-editor-plugin
 
-2. In the editor, Preferences > Plugins: set the interpreter `python3` to
-   that Python (`~/hsm-venv/bin/python`).
-3. Copy this directory as `hsm-maker`:
-   * Linux: `~/.local/share/Cyberiada/Cyberiada State Machine Editor/plugins/hsm-maker/`
-   * Windows: `%APPDATA%\Cyberiada\Cyberiada State Machine Editor\plugins\hsm-maker\`
-4. Restart the editor: the Plugins menu gets HSM Maker, the toolbar its two
-   buttons.
+  The plugin goes to the editor's user plugin folder and runs that Python
+  (`~/hsm-venv/bin/python`), so the editor needs no interpreter setting.
+  Run the command again after an upgrade of the maker.
+* By hand: copy this directory as `hsm-maker` into the user plugin folder
+  and set the interpreter `python3` in Preferences > Plugins to a Python
+  that has the maker and the binding.
+
+| System | The user plugin folder |
+|---|---|
+| Linux | `~/.local/share/Cyberiada/Cyberiada State Machine Editor/plugins/` |
+| Windows | `%APPDATA%\Cyberiada\Cyberiada State Machine Editor\plugins\` |
+| macOS | `~/Library/Application Support/Cyberiada/Cyberiada State Machine Editor/plugins/` |
+
+Restart the editor: the Plugins menu gets HSM Maker, the toolbar its two
+buttons.
 
 ## Use
 

@@ -1,6 +1,6 @@
 # The Cybersphere HSM Maker Architecture
 
-Document version: 0.3 (2026-10-14)
+Document version: 0.4 (2026-10-14)
 
 The maker turns a description of a system written in a natural language
 into a Hierarchical State Machine (HSM) diagram stored in the
@@ -286,8 +286,11 @@ issues and the changes for the editor. The details are in `API.md`.
 | `hsm_maker/patcher.py` | the difference of two trees applied to a document, the change list |
 | `hsm_maker/maker.py` | `convert`, `change` (one notation to a document) and `run` (the loop) |
 | `hsm_maker/cli.py` | the command `hsm-maker` |
+| `hsm_maker/plugin.py` | the installation of the editor plugin |
 | `hsm_maker/prompts/` | the texts of the languages |
 | `editor-plugin/` | the plugin of `CyberiadaHSM-Editor`: `plugin.json`, the icons, its README |
+| `pyproject.toml` | the Python package (pip, the wheel) |
+| `CMakeLists.txt`, `HsmMakerPackOptions.cmake.in` | the Debian package |
 
 ## The editor plugin
 
@@ -334,6 +337,45 @@ command line; empty for a local server). The description and the change are aske
 selection and the earlier findings still point at them; its diagnostics
 list the changes with links to the elements. The maker and the binding
 must be importable by the interpreter the editor uses for `python3`.
+
+## Packaging
+
+`editor-plugin/` is the one source of the plugin; both packages bring it
+where the editor looks for plugins.
+
+```
+ editor-plugin/ --+--> cpack -G DEB ---> /usr/share/cyberiada-editor/plugins/hsm-maker/
+ hsm_maker/     --+                      /usr/lib/python3/dist-packages/hsm_maker/
+                  |                      /usr/bin/hsm-maker
+                  |
+                  +--> pip install ----> <prefix>/share/cyberiada-editor/plugins/hsm-maker/
+                                         <prefix>/.../site-packages/hsm_maker/
+                                         <prefix>/bin/hsm-maker
+                                                |
+                                                | hsm-maker --install-editor-plugin [DIR]
+                                                v
+                                 <user folder>/hsm-maker/   (argv[0] = <prefix>'s Python)
+
+ the editor looks in: CYBERIADA_EDITOR_PLUGIN_PATH, <user folder>,
+                      <editor>/../share/cyberiada-editor/plugins/
+```
+
+| Package | Contents | Needs |
+|---|---|---|
+| `python3-cybersphere-hsm-maker` (deb, `all`) | the package in `/usr/lib/python3/dist-packages`, `/usr/bin/hsm-maker`, the plugin in `/usr/share/cyberiada-editor/plugins/hsm-maker/`, the documents | `python3 (>= 3.8)`, `python3-libcyberiadamlpp (>= 1.0.8)`; enhances `cyberiada-editor` |
+| `cybersphere-hsm-maker` (wheel) | the package, `hsm-maker`, the plugin as data files under the install prefix | the `CyberiadaML` binding installed apart (not a pip package) |
+
+* The deb plugin keeps the logical interpreter `python3`: the system Python
+  has the binding and the maker from their packages.
+* `hsm-maker --install-editor-plugin [DIR]` (`plugin.install`) copies the
+  plugin of the installed package (the data files of the prefix or the user
+  base, or `editor-plugin/` of a source tree) into DIR or the editor's user
+  folder (`AppDataLocation` of the editor + `plugins`: XDG data home on
+  Linux, `%APPDATA%` on Windows, `~/Library/Application Support` on macOS).
+  The copy drops `interpreter` and starts every command with the running
+  Python, so a virtual environment needs no Preferences setting. It
+  replaces an earlier copy; the stored parameter values stay. A user copy
+  overrides the system plugin of the same id.
 
 ## Testing
 

@@ -27,9 +27,31 @@ The documentation is located in the `docs` directory and contains:
 ## Requirements
 
 * python3 (version 3.8+)
-* libcyberiadamlpp-py (version 1.0.6+, the `CyberiadaML` module and its
-  dependencies)
+* libcyberiadamlpp-py (version 1.0.8+, the `CyberiadaML` module and its
+  dependencies: libcyberiadamlpp and libcyberiadaml 1.0.8+, libhtreegeom
+  1.2+)
 * pytest - for the tests
+* cmake (version 3.16+) - for the Debian package
+
+## Installation
+
+The Debian package installs the maker, the command and the editor plugin:
+
+    cmake -B build && cd build && ctest && cpack -G DEB
+    sudo apt install ./python3-cybersphere-hsm-maker_0.1.0_all.deb
+
+It depends on `python3-libcyberiadamlpp`; the plugin goes to
+`/usr/share/cyberiada-editor/plugins/hsm-maker/`, where `CyberiadaHSM-Editor`
+finds it.
+
+With pip (a virtual environment, the user site, Windows, macOS) the binding
+comes from its own build or package; then
+
+    pip install /path/to/cybersphere-hsm-maker
+    hsm-maker --install-editor-plugin
+
+copies the plugin into the editor's user plugin folder (or a given folder),
+bound to the Python that runs the command.
 
 ## Usage
 

@@ -1,6 +1,6 @@
 # The Cybersphere HSM Maker Interface Specification
 
-Document version: 0.3 (2026-10-14)
+Document version: 0.4 (2026-10-14)
 
 The package `hsm_maker` and the command `hsm-maker`. The reasons are in
 `ARCHITECTURE.md`, the notation and its issue codes in `NOTATION.md`.
@@ -163,6 +163,27 @@ The texts of the languages, `hsm_maker/prompts/<language>/`.
   * `render(issue)` - `line N: message`, `warning: ...` for a warning;
   * `change(change)` - the message of a `Change`.
 
+## Module plugin
+
+The installation of the editor plugin (`editor-plugin/`).
+
+* `PLUGIN_ID` - `'hsm-maker'`.
+* `source()` - the plugin directory of this installation: `editor-plugin/`
+  beside the package in a source tree, else
+  `share/cyberiada-editor/plugins/hsm-maker` under `sys.prefix` or under
+  the user base of `site`; `None` when none has `plugin.json`.
+* `user_folder(environ=None, system=None)` - the user plugin folder of
+  `CyberiadaHSM-Editor`: `<data>/Cyberiada/Cyberiada State Machine
+  Editor/plugins`, `<data>` being `XDG_DATA_HOME` (`~/.local/share`) on
+  Linux, `APPDATA` on Windows, `~/Library/Application Support` on macOS;
+  `system` is a `platform.system()` name.
+* `install(target=None, executable=None)` - copy the plugin into
+  `target/hsm-maker` (`target` defaults to `user_folder()`), replacing an
+  earlier copy; its `plugin.json` loses `interpreter` and every command
+  starts with `executable` (`sys.executable`). Returns the installed
+  directory. Raises `PluginError` when there is no plugin or the copy
+  fails.
+
 ## Module maker
 
 The conversion and the repair loop.
@@ -202,6 +223,7 @@ The conversion and the repair loop.
               [--save-notation FILE] [--rounds N] [--max-requests N]
               [--timeout SECONDS] [--protocol chat-completions|messages]
               [--url URL] [--model NAME] [--key-env NAME] [-v] [--version]
+    hsm-maker --install-editor-plugin [DIR]
 
 * `python -m hsm_maker` runs the same command.
 * The prompt is `PROMPT`, the file `-f` (`-` is the standard input) or the
@@ -212,6 +234,9 @@ The conversion and the repair loop.
   change; the geometry is `update` by default. An empty file is a new
   diagram.
 * `--render FILE` prints the notation of the diagram and exits.
+* `--install-editor-plugin [DIR]` installs the editor plugin into `DIR` or
+  the editor's user plugin folder, bound to the running Python
+  (`plugin.install`), prints where and exits.
 * `--diagnostics FILE` writes a JSON list for the editor: `{severity,
   message, rule, element}` - the issues of the last round (`rule` = the
   code) and, for a change, one `info` entry per change (`element` = the id
