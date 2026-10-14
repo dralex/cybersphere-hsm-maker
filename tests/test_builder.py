@@ -81,11 +81,7 @@ def test_geometry(name, tmp_path):
     assert findings == []
 
 
-@pytest.mark.parametrize('name', [
-    'lift',
-    pytest.param('elements', marks=pytest.mark.xfail(
-        reason='libhtreegeom: long transition labels overflow the machine '
-        'border'))])
+@pytest.mark.parametrize('name', ['lift', 'elements'])
 def test_layout_fits_the_border(name):
     assert B.build(tree(diagram(name + '.hsm'))).check_geometry()
 
