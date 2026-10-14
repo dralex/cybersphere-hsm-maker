@@ -134,33 +134,37 @@ class _Patch:
             return None
         return index.get((parent + PATH if parent else '') + vertex.name)
 
-    def match_vertex(self, vertex, old_machine, index):
-        old = None
-        if old_machine is None:
-            if vertex.was is not None:
-                self.issues.append(Issue('U03', vertex.line, old=vertex.was))
-        elif vertex.kind == INITIAL:
+    def _by_name(self, vertex, names):
+        """The one unclaimed old vertex of the kind and the name: a vertex
+        moved without (was OLD)."""
+        found = [o for o in names.get(vertex.name, ())
+                 if o.kind == vertex.kind and id(o) not in self.claimed]
+        return found[0] if len(found) == 1 else None
+
+    def match_vertex(self, vertex, old_machine, index, names=None):
+        """Match by the path or (was OLD); with `names`, the second pass,
+        by the unique name too."""
+        if id(vertex) in self.match or old_machine is None:
+            return
+        if vertex.kind == INITIAL:
             parent = self.match.get(id(vertex.parent)) \
                 if vertex.parent.kind != MACHINE else old_machine
-            if parent is not None:
-                old = next((c for c in parent.children
-                            if c.kind == INITIAL), None)
+            old = next((c for c in parent.children if c.kind == INITIAL),
+                       None) if parent is not None else None
+        elif vertex.was is not None and names is not None:
+            return
         else:
             old = self._find_old(vertex, index)
-        if old is not None and old.kind == vertex.kind:
-            if id(old) in self.claimed:
-                if vertex.was is not None:
-                    self.issues.append(Issue(
-                        'U04', vertex.line, old=vertex.was,
-                        first=self.claimed[id(old)].line))
-                old = None
-            else:
-                self._bind(vertex, old)
-        else:
-            old = None
-        if vertex.name and vertex.name.startswith(UNNAMED) and \
-           (old is None or not old.unnamed):
-            self.issues.append(Issue('U02', vertex.line, name=vertex.name))
+            if old is None and names is not None and vertex.was is None:
+                old = self._by_name(vertex, names)
+        if old is None or old.kind != vertex.kind:
+            return
+        if id(old) in self.claimed:
+            if vertex.was is not None:
+                self.issues.append(Issue('U04', vertex.line, old=vertex.was,
+                                         first=self.claimed[id(old)].line))
+            return
+        self._bind(vertex, old)
 
     def match_all(self):
         machines = {m.name: m for m in self.old.machines}
@@ -172,15 +176,30 @@ class _Patch:
                                          old=machine.was))
             if old is not None and id(old) not in self.claimed:
                 self._bind(machine, old)
-        for machine in self.new.machines:
-            old_machine = self.match.get(id(machine))
-            index = {}
-            if old_machine is not None:
-                index = {v.path: v for v in old_machine.walk()
-                         if v.kind not in (MACHINE, INITIAL)}
-            for vertex in machine.walk():
-                if vertex is not machine:
-                    self.match_vertex(vertex, old_machine, index)
+        for second in (False, True):
+            for machine in self.new.machines:
+                old_machine = self.match.get(id(machine))
+                index, names = {}, {}
+                if old_machine is not None:
+                    for old in old_machine.walk():
+                        if old.kind not in (MACHINE, INITIAL):
+                            index[old.path] = old
+                            names.setdefault(old.name, []).append(old)
+                if old_machine is None and not second:
+                    for vertex in machine.walk():
+                        if vertex.was is not None and vertex is not machine:
+                            self.issues.append(Issue('U03', vertex.line,
+                                                     old=vertex.was))
+                for vertex in machine.walk():
+                    if vertex is not machine:
+                        self.match_vertex(vertex, old_machine, index,
+                                          names if second else None)
+        for vertex in self.new.walk():
+            old = self.match.get(id(vertex))
+            if vertex.name and vertex.name.startswith(UNNAMED) and \
+               (old is None or not old.unnamed):
+                self.issues.append(Issue('U02', vertex.line,
+                                         name=vertex.name))
 
     # the document
 

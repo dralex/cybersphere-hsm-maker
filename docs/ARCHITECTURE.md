@@ -179,7 +179,9 @@ declarations, prompts, colours, meta parameters.
 * **Identity.** A machine by its name; a vertex by its path in the old
   diagram - the `(was OLD)` of its line, else the old path of its parent
   and its name; the initial by its container; a `_n` name by the unnamed
-  element it was given to. A transition by its source, event, guard,
+  element it was given to. A vertex left unmatched is then matched by its
+  name when exactly one unclaimed old vertex of its kind has it: a move
+  the model did not declare. A transition by its source, event, guard,
   propagation and target: the same key with another action is an action
   change; a transition with the same ends and another event, guard or flag
   is edited in place (it keeps its route); anything else is a removal and

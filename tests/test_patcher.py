@@ -263,3 +263,21 @@ def test_guard_edited_in_place():
                 round(source.y), round(target.x), round(target.y))
     assert route(conversion.graphml)[1:] == route(LIFT)[1:]
     assert route(conversion.graphml)[0] == 'doors_free'
+
+
+def test_moved_without_was():
+    original = drawn('machine M\n  initial -> A\n  state A\n    GO -> B\n'
+                     '  state B\n    BACK -> A\n')
+    old = M.Original(original)
+    ids = {v.name: v.element_id for v in old.tree.walk() if v.name}
+    new = 'machine M\n  initial -> Work\n  state Work\n    initial -> A\n' \
+        '    state A\n      GO -> B\n    state B\n      BACK -> A\n' \
+        '    STOP -> Done\n  final Done\n'
+    conversion = M.change(original, new, old=old)
+    assert conversion.ok, conversion.errors
+    moves = {c.fields['name']: c.element for c in conversion.changes
+             if c.code == 'C04'}
+    assert moves == {'A': ids['A'], 'B': ids['B']}
+    # the transitions of the moved states stay; only the initial one changed
+    assert [c.fields['label'] for c in conversion.changes
+            if c.code == 'C07'] == ['initial -> A']
