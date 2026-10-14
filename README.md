@@ -49,6 +49,15 @@ language of the prompt). `--geometry none` saves the diagram without the
 layout. `--notation FILE` builds a diagram from a notation file without a
 model.
 
+    hsm-maker --update lift.graphml -o lift2.graphml "add a maintenance mode"
+    hsm-maker --render lift.graphml
+
+`--update FILE` changes an existing diagram: what the change does not touch
+keeps its identifier, its place and its comments, the new elements are
+placed around the drawing. `--render FILE` prints a diagram in the notation.
+`--diagnostics FILE` writes the issues and the changes as JSON.
+`editor-plugin/` is the plugin of `CyberiadaHSM-Editor` (see its README).
+
 From Python:
 
 ```python
@@ -68,5 +77,6 @@ The tests cover the notation parser and its checks, the building of the
 documents, both protocols of the client against a local stub server, the
 repair loop with a scripted model and the command line. The documents are
 also checked with the validator of `cyberiadaml-compat-tests` when that
-repository is found beside this one. `pylint.sh` runs the linter over the
+repository is found beside this one, and the editor plugin is run in the
+batch mode of `CyberiadaHSM-Editor` when its build is found there. `pylint.sh` runs the linter over the
 sources. `REGEN=1` records the good files of `tests/good` again.

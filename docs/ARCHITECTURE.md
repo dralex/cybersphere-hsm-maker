@@ -315,8 +315,8 @@ hsm_maker`, no adapter. Its README is for the users of the editor.
 
 The model options come from the persistent parameters (Settings...):
 model, server, protocol, language, rounds and the key (`env:NAME` or
-`file:PATH`, exported to the run as `HSM_MAKER_KEY`, never in the command
-line). The description and the change are asked at every run. The
+`file:PATH`, exported to the run as `HSM_MAKER_API_KEY`, never in the
+command line; empty for a local server). The description and the change are asked at every run. The
 `change` action keeps the identifiers of what it does not change, so the
 selection and the earlier findings still point at them; its diagnostics
 list the changes with links to the elements. The maker and the binding
