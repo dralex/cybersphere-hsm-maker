@@ -129,6 +129,7 @@ class Vertex:
         self.reference = None
         self.was = None
         self.element_id = None
+        self.unnamed = False
         if parent is not None:
             parent.children.append(self)
 

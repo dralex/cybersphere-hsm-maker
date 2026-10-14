@@ -89,10 +89,11 @@ A document to the notation tree.
 
 * `ReadError(message)` - the diagram cannot be read or shown in the
   notation.
-* `decode(graphml)` - a `CyberiadaML.Document` of the text, the empty
-  actions skipped. Raises `ReadError`.
+* `decode(graphml)` - a `CyberiadaML.Document` of the text. Raises
+  `ReadError`.
 * `read(document)` - the `Diagram` of a document: the vertices and the
-  transitions with their `element_id`, the names `_kindN` (`_final1`) for
+  transitions with their `element_id` (an empty entry or exit behaviour
+  is left out), the names `_kindN` (`_final1`) for
   the unnamed final, choice, terminate, history and submachine states, the
   notes for the comments, the component declarations, the other formal
   comments and the meta parameters other than the name and the
