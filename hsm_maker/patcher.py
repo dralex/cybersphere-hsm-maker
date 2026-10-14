@@ -35,6 +35,9 @@ from .notation import Issue, INITIAL, MACHINE, STATE, PATH, UNNAMED
 from .reader import decode
 
 COMMENT_TYPES = [CyberiadaML.elementComment, CyberiadaML.elementFormalComment]
+# the text estimates of libcyberiadaml: a 16 px monospace font
+CHAR_WIDTH, LINE_HEIGHT, TEXT_MARGIN = 10.0, 20.0, 8.0
+ACTION_HEAD, GUARD_EXTRA = 6, 3     # "entry/", " [" and "]"
 
 
 class Change:
@@ -87,6 +90,22 @@ def _entries(vertex):
     return entries
 
 
+def text_size(vertex):
+    """The estimated text block of a state: the title, the actions as the
+    writer formats them."""
+    chars, lines = len(vertex.name or ''), 1
+    for kind, event, guard, _, action in _entries(vertex):
+        head = ACTION_HEAD if kind else \
+            len(event) + 1 + (len(guard) + GUARD_EXTRA if guard else 0)
+        chars = max(chars, head)
+        lines += 1
+        for line in action.split('\n') if action else []:
+            chars = max(chars, len(line))
+            lines += 1
+    return (chars * CHAR_WIDTH + 2 * TEXT_MARGIN,
+            lines * LINE_HEIGHT + 2 * TEXT_MARGIN)
+
+
 def _label(transition):
     text = '{} -> {}'.format(transition.source.name or transition.source.kind,
                              transition.target.name or transition.target.kind)
@@ -104,6 +123,7 @@ class _Patch:
         self.created = {}    # id(new vertex) -> element id in the document
         self.changes = []
         self.issues = []
+        self.texts = {}      # old id -> (new, old): the texts changed
 
     # the identity
 
@@ -313,6 +333,7 @@ class _Patch:
                not same_text(old.action, new.action):
                 self.update_action(old, new)
         self.attach(links)
+        self.grow()
         self.meta()
 
     def remove_transitions(self, gone):
@@ -367,6 +388,32 @@ class _Patch:
             self.changes.append(Change('C04', old.element_id, name=vertex.name,
                                        parent=vertex.parent.name))
 
+    def grow(self):
+        """A drawn simple state whose text grew grows from its corner by
+        the estimate of what it gained; the layout keeps the ends of its
+        routes on the new border."""
+        grown = []
+        for vertex, old in self.texts.values():
+            element = self.document.find_element_by_id(old.element_id)
+            if element is None or not element.has_geometry() or \
+               element.get_type() != CyberiadaML.elementSimpleState:
+                continue
+            (w0, h0), (w1, h1) = text_size(old), text_size(vertex)
+            if w1 > w0 or h1 > h0:
+                grown.append((old.element_id, max(w1 - w0, 0.0),
+                              max(h1 - h0, 0.0)))
+        if not grown:
+            return
+        # the corner is fixed in the local format, not in the centred one
+        fmt = self.document.get_geometry_format()
+        self.document.convert_geometry(CyberiadaML.geometryFormatCyberiada10)
+        for element_id, dw, dh in grown:
+            element = self.document.find_element_by_id(element_id)
+            rect = element.get_geometry_rect()
+            element.update_geometry(CyberiadaML.Rect(
+                rect.x, rect.y, rect.width + dw, rect.height + dh))
+        self.document.convert_geometry(fmt)
+
     def remove_vertices(self, removed):
         """Remove the topmost removed vertices with their subtrees."""
         for old in removed:
@@ -398,6 +445,7 @@ class _Patch:
             element = self.element(vertex)
             if vertex.name != old.name:
                 element.set_name(vertex.name)
+                self.texts[old.element_id] = (vertex, old)
                 self.changes.append(Change('C03', old.element_id,
                                            old=old.name, name=vertex.name))
             if vertex.kind == STATE:
@@ -424,6 +472,7 @@ class _Patch:
                 if same_text(text, transition.action):
                     transition.action = text
         element.set_actions(actions_of(vertex))
+        self.texts[old.element_id] = (vertex, old)
         self.changes.append(Change('C05', old.element_id, name=vertex.name))
 
     def update_action(self, old, new):

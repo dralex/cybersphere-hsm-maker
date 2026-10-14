@@ -191,6 +191,11 @@ declarations, prompts, colours, meta parameters.
   their geometry: the container is laid out around the drawing, which
   keeps its routes (`libhtreegeom` moves a drawn transition with its ends
   when they moved alike). Any other move is laid out anew.
+* **Sizes.** A drawn simple state whose text grew (actions, a longer
+  name) grows from its corner by the difference of the text estimates of
+  `libcyberiadaml` (20 px a line, 10 px a character); an unchanged text
+  changes nothing. The layout keeps the ends of its routes on the new
+  border.
 * **Texts.** An action or a guard that differs from the original only as
   the notation normalises it (indentation, `#` lines, spacing) keeps the
   original text.
@@ -371,6 +376,10 @@ not its design: a model may simplify the behaviour of a description.
 * One incoming transition per choice, no `do/` - limits of the library.
 * A drawn composite that grows sideways in the update may shift its drawn
   neighbours (`libhtreegeom`).
+* A drawn composite whose own actions grow keeps its size: the editor shows
+  its content below the longer header, off the drawn routes into it.
+* A new composite wrapping drawn states is placed after the drawn ones it
+  follows; the place the states left stays empty.
 * Comments, several regions and internal transitions without an event are
   not in the notation; a changed diagram keeps its comments.
 

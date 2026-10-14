@@ -173,6 +173,27 @@ def test_state_actions():
         ('LATER', CyberiadaML.eventPropagationDefer, '')]
 
 
+def test_grown_text_grows_the_state(tmp_path):
+    old = M.Original(LIFT)
+    conversion = M.change(LIFT, old.notation.replace(
+        '    entry/ open_doors()\n',
+        '    entry/ open_doors()\n    BLOCKED / beep()\n    STUCK / alarm()\n'),
+        old=old)
+    assert conversion.ok, conversion.errors
+    before, after = states(LIFT), states(conversion.graphml)
+    names = {v[0]: k for k, v in before.items()}
+    doors, idle = names['DoorsOpen'], names['Idle']
+    # two heads and two behaviour lines of the estimate, the corner kept
+    assert after[doors][3:] == (before[doors][3], before[doors][4] + 4 * 20)
+    assert (after[doors][1] - after[idle][1], after[doors][2] - after[idle][2]) \
+        == (before[doors][1] - before[idle][1],
+            before[doors][2] - before[idle][2])
+    assert all(after[k][3:] == before[k][3:] for k in before if k != doors)
+    path = tmp_path / 'grown.graphml'
+    path.write_text(conversion.graphml, encoding='utf-8')
+    assert validate(str(path)) in ([], None)
+
+
 def test_notation_normal_form_keeps_the_original_text():
     document = CyberiadaML.Document()
     machine = document.new_state_machine('M')
