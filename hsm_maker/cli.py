@@ -34,6 +34,7 @@ from .language import AUTO, Texts, choose, languages
 from .maker import (REQUEST_LIMIT, ROUNDS, Original, change, convert, run,
                     run_update)
 from .notation import ERROR, WARNING
+from .plugin import PLUGIN_ID, PluginError, install
 from .reader import ReadError
 
 EXIT_MADE = 0
@@ -63,6 +64,11 @@ def parser():
                           'describes the change')
     commands.add_argument('--render', metavar='FILE',
                           help='print the notation of the diagram')
+    commands.add_argument('--install-editor-plugin', nargs='?', const='',
+                          metavar='DIR',
+                          help='install the editor plugin into DIR or the '
+                          'user plugin folder of the editor, run by this '
+                          'Python')
     commands.add_argument('-o', '--output', metavar='FILE',
                           help='the GraphML file; the standard output by '
                           'default')
@@ -207,10 +213,19 @@ def _original(options):
     return text if text.strip() else None
 
 
+def _install_plugin(target):
+    folder = install(target or None)
+    print('installed the editor plugin {} {} to\n  {}\nit runs {}; restart '
+          'the editor'.format(PLUGIN_ID, __version__, folder, sys.executable))
+    return EXIT_MADE
+
+
 def main(argv=None):
     options = parser().parse_args(argv)
     language = options.language or os.environ.get(ENV_LANGUAGE) or AUTO
     try:
+        if options.install_editor_plugin is not None:
+            return _install_plugin(options.install_editor_plugin)
         if options.render:
             _write(None, Original(_read(options.render)).notation)
             return EXIT_MADE
@@ -234,7 +249,7 @@ def main(argv=None):
             result = run_update(graphml, prompt, client, language,
                                 options.geometry, options.rounds, log)
         return _made(options, result)
-    except (ConfigError, ReadError) as error:
+    except (ConfigError, ReadError, PluginError) as error:
         _say('{}: {}'.format(PROGRAM, error))
         return EXIT_USAGE
     except OSError as error:

@@ -177,11 +177,16 @@ The installation of the editor plugin (`editor-plugin/`).
   Editor/plugins`, `<data>` being `XDG_DATA_HOME` (`~/.local/share`) on
   Linux, `APPDATA` on Windows, `~/Library/Application Support` on macOS;
   `system` is a `platform.system()` name.
+* `pinned(descriptor, executable)` - the descriptor (a dict) without
+  `interpreter`, every `argv` starting with `executable`; a descriptor
+  without an interpreter is returned as it is.
 * `install(target=None, executable=None)` - copy the plugin into
   `target/hsm-maker` (`target` defaults to `user_folder()`), replacing an
   earlier copy; its `plugin.json` loses `interpreter` and every command
-  starts with `executable` (`sys.executable`). Returns the installed
-  directory. Raises `PluginError` when there is no plugin or the copy
+  starts with `executable` (`sys.executable`); a copy from a source tree
+  also sets `PYTHONPATH` to the tree in its `env`. Returns the installed
+  directory. Raises `PluginError` when there is no plugin, when
+  `target/hsm-maker` exists and is not this plugin, or when the copy
   fails.
 
 ## Module maker

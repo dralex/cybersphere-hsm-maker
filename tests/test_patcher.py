@@ -188,7 +188,7 @@ def test_grown_text_grows_the_state(tmp_path):
     assert (after[doors][1] - after[idle][1], after[doors][2] - after[idle][2]) \
         == (before[doors][1] - before[idle][1],
             before[doors][2] - before[idle][2])
-    assert all(after[k][3:] == before[k][3:] for k in before if k != doors)
+    assert all(after[k][3:] == v[3:] for k, v in before.items() if k != doors)
     path = tmp_path / 'grown.graphml'
     path.write_text(conversion.graphml, encoding='utf-8')
     assert validate(str(path)) in ([], None)
