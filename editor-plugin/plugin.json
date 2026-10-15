@@ -56,7 +56,7 @@
                "--protocol", "${param:protocol}", "--language", "${param:language}",
                "--rounds", "${param:rounds}"] },
     { "id": "notation", "label": "Show the notation", "result": "log",
-      "parameters": [],
+      "parameters": [], "icon": "icons/check.svg",
       "description": "The open diagram in the notation the model reads",
       "argv": ["-m", "hsm_maker", "--render", "${input}"] }
   ]
