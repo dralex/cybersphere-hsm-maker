@@ -1,6 +1,6 @@
 # The Cybersphere HSM Maker Interface Specification
 
-Document version: 0.4 (2026-10-14)
+Document version: 0.5 (2026-10-15)
 
 The package `hsm_maker` and the command `hsm-maker`. The reasons are in
 `ARCHITECTURE.md`, the notation and its issue codes in `NOTATION.md`.
@@ -9,9 +9,10 @@ The package `hsm_maker` and the command `hsm-maker`. The reasons are in
 
 * `__version__` - the version of the package.
 * `make(prompt, client=None, *, protocol=None, url=None, model=None,
-  key=None, key_env=None, language='auto', geometry='full', rounds=3,
-  max_requests=None, timeout=None, log=None)` - make a diagram from the
-  description `prompt`; return a `Result`; `log` as in `maker.run`.
+  key=None, key_env=None, language='auto', code_language='auto',
+  geometry='full', rounds=3, max_requests=None, timeout=None, log=None)` -
+  make a diagram from the description `prompt`; return a `Result`;
+  `code_language` and `log` as in `maker.run`.
   Without `client` a `Client` is created from the arguments and the
   environment (`client.from_environment`). Raises `ConfigError` for a bad
   configuration and `ClientError` when the server fails.
@@ -39,7 +40,12 @@ The notation tree, its parser and its checks. It does not use the binding.
   the fields of the message.
 * `NotationError(issues)` - the syntax errors of a text; `issues` lists
   them all.
-* `Diagram` - the tree: `name`, `description`, `machines` (the vertices of
+* `CODE_LANGUAGES` - the code languages of the editor: `'C'`, `'C++'`,
+  `'C#'`, `'Java'`, `'JavaScript'`, `'Python'`.
+* `language_spelling(name)` - the spelling of `CODE_LANGUAGES` of a name
+  equal to one of them but for the case; else the name.
+* `Diagram` - the tree: `name`, `description`, `language` (the code
+  language, meta `platformLanguage`), `machines` (the vertices of
   the kind `MACHINE`), `notes` (`(vertex or None, text)`, written as `#
   note:` lines), `walk()` (every vertex in the notation order).
 * `Vertex` - a machine, a state, a submachine, a pseudostate or a point:
@@ -200,31 +206,37 @@ The conversion and the repair loop.
 * `Result` - `ok`, `graphml`, `document`, `notation` (of the last round),
   `errors`, `warnings`, `changes`, `rounds`, `usage`, `language`, `reason`
   (`'accepted'`, `'rounds'`, `'request-limit'`).
-* `convert(notation, geometry=GEOMETRY_FULL)` - parse, analyse, build,
-  encode and verify one notation; return a `Conversion`. Never raises for
-  a mistake of the text.
-* `change(graphml, notation, geometry=GEOMETRY_UPDATE, old=None)` - apply
-  one changed notation to the diagram of the GraphML text: analyse with the
-  issues of the original as warnings, patch, encode and verify; return a
-  `Conversion` with the changes. `old` is the tree read from the original
-  (read again when absent).
+* `convert(notation, geometry=GEOMETRY_FULL, code_language=AUTO)` - parse,
+  analyse, build, encode and verify one notation; return a `Conversion`.
+  A `code_language` other than `AUTO` replaces the `language:` of the
+  notation. Never raises for a mistake of the text.
+* `change(graphml, notation, geometry=GEOMETRY_UPDATE, old=None,
+  code_language=AUTO)` - apply one changed notation to the diagram of the
+  GraphML text: analyse with the issues of the original as warnings, patch,
+  encode and verify; return a `Conversion` with the changes. `old` is the
+  tree read from the original (read again when absent); `code_language` as
+  in `convert`.
 * `feedback(conversion, texts, truncated=False)` - the message to the
   model about a rejected conversion.
 * `run(prompt, client, language=AUTO, geometry=GEOMETRY_FULL,
-  rounds=ROUNDS, log=None)` - the loop of `ARCHITECTURE.md`; return a
-  `Result`. `log(number, reply, conversion)` is called after every round.
+  rounds=ROUNDS, log=None, code_language=AUTO)` - the loop of
+  `ARCHITECTURE.md`; return a `Result`. `log(number, reply, conversion)` is
+  called after every round. A `code_language` other than `AUTO` is asked of
+  the model and written (`ARCHITECTURE.md`, The code language).
   Raises `ClientError` other than the request limit. A client is any
   object with `complete(system, messages)` and `usage`.
 * `run_update(graphml, prompt, client, language=AUTO,
-  geometry=GEOMETRY_UPDATE, rounds=ROUNDS, log=None)` - the loop of the
-  update: the diagram rendered into the first message, every answer
-  applied with `change`. Raises `ReadError` before the first request.
+  geometry=GEOMETRY_UPDATE, rounds=ROUNDS, log=None, code_language=AUTO)` -
+  the loop of the update: the diagram rendered into the first message,
+  every answer applied with `change`; `code_language` as in `run`. Raises
+  `ReadError` before the first request.
 
 ## Command hsm-maker
 
     hsm-maker [PROMPT] [-f FILE] [--notation FILE] [--update FILE]
               [--render FILE] [-o FILE] [--diagnostics FILE]
               [--geometry full|update|none] [--language auto|en|ru]
+              [--code-language auto|NAME]
               [--save-notation FILE] [--rounds N] [--max-requests N]
               [--timeout SECONDS] [--protocol chat-completions|messages]
               [--url URL] [--model NAME] [--key-env NAME] [-v] [--version]
@@ -239,6 +251,10 @@ The conversion and the repair loop.
   change; the geometry is `update` by default. An empty file is a new
   diagram.
 * `--render FILE` prints the notation of the diagram and exits.
+* `--code-language auto|NAME` (`HSM_MAKER_CODE_LANGUAGE`, `auto`) - the
+  programming language of the actions: `auto` takes the model's `language:`
+  header, a name is asked of the model and written; with `--notation` the
+  name replaces the header.
 * `--install-editor-plugin [DIR]` installs the editor plugin into `DIR` or
   the editor's user plugin folder, bound to the running Python
   (`plugin.install`), prints where and exits.

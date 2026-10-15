@@ -1,6 +1,6 @@
 # The Cybersphere HSM Maker Architecture
 
-Document version: 0.4 (2026-10-14)
+Document version: 0.5 (2026-10-15)
 
 The maker turns a description of a system written in a natural language
 into a Hierarchical State Machine (HSM) diagram stored in the
@@ -54,6 +54,7 @@ framework, no vendor SDK, no editor.
 | R8 | Limit the requests and report the usage: requests, tokens. | The client |
 | R9 | Change an existing diagram by a description of the change; what is not changed keeps its identity, its place and the parts the notation does not show. | The update |
 | R10 | Run from `CyberiadaHSM-Editor`: draw a new diagram, change the open one. | The editor plugin |
+| R11 | Declare the programming language of the actions: the model's choice or the user's. | The code language |
 
 ## The notation
 
@@ -233,6 +234,23 @@ issues the command prints. The Russian texts use the terms of PNST 984,
 clause 3. The keywords of the notation are English in every language;
 names, events, guards and actions may be written in any script.
 
+## The code language
+
+The programming language of the actions is the `platformLanguage` of the
+document: the editor highlights the actions by it, the code generators
+read it. The model declares it in the `language:` header of the notation;
+`--code-language` (`HSM_MAKER_CODE_LANGUAGE`) decides who chooses:
+
+| `--code-language` | A new diagram | A changed diagram |
+|---|---|---|
+| `auto` (default) | the model's header; without it no language | the model's header; without it the diagram's language is kept |
+| a name | the model is told to write the actions in it; the name is written whatever the answer declares | the same |
+
+A changed diagram shows its language to the model as the header, so the
+model keeps it unless the change asks for another. The editor's names (C,
+C++, C#, Java, JavaScript, Python) are written in their spelling whatever
+their case; the plugin offers them as the choices of its setting.
+
 ## The client
 
 `client.py` speaks two protocols over `urllib`:
@@ -257,6 +275,7 @@ message.
 | `--model` | `HSM_MAKER_MODEL` | - |
 | `--key-env` | `HSM_MAKER_KEY_ENV` | - |
 | `--language` | `HSM_MAKER_LANGUAGE` | `auto` |
+| `--code-language` | `HSM_MAKER_CODE_LANGUAGE` | `auto` |
 
 The key is the value of the variable named by `--key-env`; else of
 `HSM_MAKER_API_KEY`; else of the conventional variable of the server, the
@@ -332,7 +351,7 @@ hsm_maker`, no adapter. Its README is for the users of the editor.
 | `notation` - Show the notation | `log` | `-m hsm_maker --render ${input}` |
 
 The model options come from the persistent parameters (Settings...):
-model, server, protocol, language, rounds and the key (`env:NAME` or
+model, server, protocol, language, code language, rounds and the key (`env:NAME` or
 `file:PATH`, exported to the run as `HSM_MAKER_API_KEY`, never in the
 command line; empty for a local server). The description and the change are asked at every run. The
 `change` action keeps the identifiers of what it does not change, so the

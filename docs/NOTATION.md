@@ -1,6 +1,6 @@
 # The HSM Maker Notation
 
-Document version: 0.2 (2026-10-14)
+Document version: 0.3 (2026-10-15)
 
 The notation is the text a language model writes for the maker: the
 structure of one CyberiadaML document, without identifiers and without
@@ -14,6 +14,7 @@ model and applies the model's answer to the same document.
 ```hsm
 name: Lift
 description: A lift with one call button on every floor
+language: Python
 machine Lift
   initial -> Idle / floor = 1
   state Idle
@@ -44,6 +45,7 @@ machine Lift
 |---|---|---|
 | `name: TEXT` | the document name (meta `name`) | before the first machine, once |
 | `description: TEXT` | the document description (meta `description`) | before the first machine, once |
+| `language: NAME` | the programming language of the actions (meta `platformLanguage`) | before the first machine, once |
 | `machine NAME` | a state machine | the top level |
 | `state NAME` | a state; a state with child states is composite | a machine, a state |
 | `initial -> TARGET [/ ACTION]` | the initial pseudostate of the level and its transition | a machine, a state |
@@ -84,14 +86,15 @@ guard brackets themselves.
 * The keywords are English and case-sensitive: `machine`, `state`,
   `initial`, `final`, `terminate`, `choice`, `history`, `deep history`,
   `entry point`, `exit point`, `submachine`, `of`, `entry/`, `exit/`,
-  `propagate`, `block`, `defer`, `was`, `name:`, `description:`.
+  `propagate`, `block`, `defer`, `was`, `name:`, `description:`,
+  `language:`.
   `entry /` and `exit /` are accepted too.
 
 ## Grammar
 
 ```
 diagram     = { header } machine { machine } ;
-header      = ( "name:" | "description:" ) text ;
+header      = ( "name:" | "description:" | "language:" ) text ;
 machine     = "machine" declared { vertex } ;                  (* children indented *)
 vertex      = state | initial | final | terminate | choice | history | point | submachine ;
 state       = "state" declared { vertex | behaviour | transition } ;
@@ -127,7 +130,10 @@ name        = word | '"' text '"' ;
 * `condition` is any text without `[` and `]`; write `\[` and `\]` for the
   brackets.
 * `action` is the rest of the line and its continuation lines: statements
-  of the platform language. `defer` stands alone.
+  of the `language:` header's language. `defer` stands alone.
+* `language:` takes any name; `C`, `C++`, `C#`, `Java`, `JavaScript` and
+  `Python` - the languages of the editor - are written in this spelling
+  whatever their case (`python` - `Python`).
 * `(was OLD)` is used only when a diagram is changed (see below).
 
 ## Names and targets
@@ -200,6 +206,8 @@ its geometry and everything the notation does not show.
 * **Unnamed elements** of the diagram are written with names starting with
   `_` (`final _final1`); such a name refers to that element, a new element
   may not start with `_`, and the element stays unnamed.
+* **`language:`** - a missing header keeps the language of the diagram,
+  another name changes it.
 * **Notes** - the lines `# note: ...` show what the notation cannot
   express: comments, component declarations, prompts, the platform. They
   are kept by the maker whatever the answer holds.
@@ -307,6 +315,7 @@ vertices, then the transitions.
 |---|---|
 | `name:` | `document.set_name(text)` |
 | `description:` | `document.meta().set_string('description', text)` |
+| `language:` | `document.meta().set_string('platformLanguage', NAME)` |
 | `machine NAME` | `document.new_state_machine(NAME)` |
 | `state NAME` | `document.new_state(parent, NAME)` |
 | `initial` | `document.new_initial(parent)` |
