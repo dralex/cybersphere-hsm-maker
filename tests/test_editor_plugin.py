@@ -145,6 +145,38 @@ def test_draw_and_change(stub, tmp_path):
             assert after.find_element_by_id(vertex.element_id) is not None
 
 
+def platform_language(path):
+    document = CyberiadaML.Document()
+    document.decode(path.read_text(encoding='utf-8'))
+    return document.meta().get_string('platformLanguage')
+
+
+def test_code_language(stub, tmp_path):
+    prompt = tmp_path / 'prompt.txt'
+    prompt.write_text('A lift', encoding='utf-8')
+    stub.answer(chat_answer(fenced('language: Python\n' +
+                                   diagram('lift.hsm'))))
+    drawn = tmp_path / 'lift.graphml'
+    run = editor(['--run-plugin', 'hsm-maker:draw', '--plugin-param',
+                  'prompt=@' + str(prompt), '--plugin-param',
+                  'code_language=C++'] + model(stub) + ['--save', str(drawn)],
+                 tmp_path, 'k')
+    assert run.returncode == 0, run.stdout + run.stderr
+    assert 'C++' in stub.requests[0][2]['messages'][1]['content']
+    assert platform_language(drawn) == 'C++'
+
+    # auto: an answer without the header keeps the language of the diagram
+    stub.answer(chat_answer(fenced(diagram('lift.hsm'))))
+    request = tmp_path / 'change.txt'
+    request.write_text('Nothing', encoding='utf-8')
+    changed = tmp_path / 'changed.graphml'
+    run = editor([str(drawn), '--run-plugin', 'hsm-maker:change',
+                  '--plugin-param', 'change=@' + str(request)] + model(stub) +
+                 ['--save', str(changed)], tmp_path, 'k')
+    assert run.returncode == 0, run.stdout + run.stderr
+    assert platform_language(changed) == 'C++'
+
+
 def test_notation(tmp_path):
     drawn = tmp_path / 'lift.graphml'
     with open(os.path.join(ROOT, 'tests', 'good', 'lift.graphml'),

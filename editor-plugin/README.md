@@ -38,7 +38,8 @@ buttons.
  Plugins > HSM Maker > Draw a new diagram...   a new tab with the diagram
                        Change the diagram...   the open diagram changed (one undo step)
                        Show the notation       the notation in the plugin Output
-                       Settings...             model, server, protocol, key, language, rounds
+                       Settings...             model, server, protocol, key, language,
+                                               code language, rounds
 ```
 
 * **Draw a new diagram...** asks for the description and opens the result
@@ -55,6 +56,11 @@ buttons.
   instructions and the rounds of correction. With `auto` the description
   decides the language; one without a majority of letters takes the
   editor's interface language.
+* **Code language** - the programming language of the actions, the
+  `platformLanguage` of the diagram that the editor highlights. With
+  `auto` the model chooses it from the description (none when nothing
+  hints at one), and a changed diagram keeps its own unless the change
+  asks for another; a chosen language is asked of the model and written.
 * The menu and the dialog texts follow the editor's interface language
   (`i18n/ru.json`).
 

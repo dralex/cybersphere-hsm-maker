@@ -34,6 +34,7 @@ One element per line. Indentation with spaces shows nesting: the lines indented 
 
     name: TEXT                        the name of the diagram (optional, the first line)
     description: TEXT                 one sentence about it (optional)
+    language: NAME                    the programming language of the actions (optional)
     machine NAME                      a state machine
     state NAME                        a state; a state with child states is composite
     initial -> TARGET / ACTION        the initial pseudostate of its level and its transition
@@ -63,7 +64,7 @@ The guard `[...]` and the `/ ACTION` part are optional everywhere.
 - TARGET: the name of a state, final, choice or terminate of the same machine. A final or a terminate is a target by its name, so declare it with one: `final Done`, then `-> Done`. When a name is not unique in the machine, write its path from the machine top: Outer::Inner.
 - EVENT: letters, digits, _ and dots (button.PRESSED), one optional parameter in parentheses: CALL(floor). Write events in CAPITALS. Reserved, never events: entry, exit, do, propagate, block, defer, else.
 - GUARD: a boolean expression without [ and ].
-- ACTION: statements in the platform language (function calls, assignments). A long action continues on the following lines, indented deeper than its first line.
+- ACTION: statements in the language of the `language:` header (function calls, assignments). A long action continues on the following lines, indented deeper than its first line.
 - A line starting with # is a comment.
 - A transition reaches a point by its path: GO -> Job::Start. The entry points of a submachine are the entry points of its machine with the same names; its exit points lead on: exit point Done -> Ready.
 
@@ -75,6 +76,7 @@ The guard `[...]` and the `/ ACTION` part are optional everywhere.
 - Write the states in the order of the flow: the initial first, the final states last.
 - Keep the diagram as simple as the description allows; when several states react to an event the same way, put them into a composite state and give the transition to it.
 - When the description leaves something open, choose the simplest reasonable behaviour.
+- Declare the programming language of the actions with `language:` when the description names it or its platform implies it (an Arduino sketch: C++); otherwise leave the header out and keep the actions to simple function calls and assignments.
 
 # Changing a diagram
 
@@ -84,6 +86,7 @@ When you get a diagram with a change to make:
 - Keep every line that the change does not touch exactly as it is.
 - To rename or move an element, keep its line and add (was OLD): `state Waiting (was Idle)`, `state Fan (was Cooling::Fan)`. Without it the element is replaced by a new one.
 - Names starting with _ belong to unnamed elements: keep them; never give such a name to a new element.
+- Keep the `language:` header unless the change asks for another language; write the new actions in its language.
 - Lines `# note: ...` describe comments, components and settings of the diagram; they are kept anyway, use them as context.
 
 # Example

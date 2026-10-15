@@ -26,7 +26,7 @@ notation cannot show."""
 
 import CyberiadaML
 
-from .builder import BINDING_ERRORS
+from .builder import BINDING_ERRORS, PLATFORM_LANGUAGE
 from .notation import (Behaviour, Diagram, NotationError, Transition, Vertex,
                        MACHINE, STATE, INITIAL, FINAL, TERMINATE, CHOICE,
                        HISTORY, DEEP_HISTORY, ENTRY_POINT, EXIT_POINT,
@@ -59,8 +59,8 @@ SYNTHETIC = {MACHINE: 'machine', STATE: 'state', FINAL: 'final',
              DEEP_HISTORY: 'deep', ENTRY_POINT: 'entry', EXIT_POINT: 'exit',
              SUBMACHINE: 'submachine'}
 META_NAME = 'CGML_META'
-META_NOTES = ('platform', 'platformVersion', 'platformLanguage', 'target',
-              'markupLanguage', 'author', 'version')
+META_NOTES = ('platform', 'platformVersion', 'target', 'markupLanguage',
+              'author', 'version')
 NOTE_LIMIT = 100
 
 
@@ -193,6 +193,7 @@ class _Reader:
         meta = self.document.meta()
         diagram.name = self.document.get_name() or None
         diagram.description = meta.get_string('description') or None
+        diagram.language = meta.get_string(PLATFORM_LANGUAGE) or None
         for key in META_NOTES:
             if meta.get_string(key):
                 diagram.notes.append((None, '{}: {}'.format(

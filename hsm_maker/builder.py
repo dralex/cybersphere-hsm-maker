@@ -38,6 +38,8 @@ GEOMETRY_NONE = 'none'
 GEOMETRY_UPDATE = 'update'
 GEOMETRIES = (GEOMETRY_FULL, GEOMETRY_NONE)
 CHANGE_GEOMETRIES = (GEOMETRY_UPDATE, GEOMETRY_FULL, GEOMETRY_NONE)
+# the meta key of the code language
+PLATFORM_LANGUAGE = 'platformLanguage'
 
 # the classes are registered apart and share no base but Exception
 BINDING_ERRORS = tuple(getattr(CyberiadaML, name) for name in (
@@ -180,6 +182,9 @@ def build(diagram, geometry=GEOMETRY_FULL):
     if diagram.description:
         _call(None, document.meta().set_string, 'description',
               diagram.description)
+    if diagram.language:
+        _call(None, document.meta().set_string, PLATFORM_LANGUAGE,
+              diagram.language)
     elements = {}
     machine_ids = {}
     for machine in diagram.machines:

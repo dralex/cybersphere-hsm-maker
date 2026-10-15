@@ -12,5 +12,8 @@ Added:
 - the change of an existing diagram (`--update`): what the change does not
   touch keeps its identifier, its drawing and its comments;
 - the plugin of CyberiadaHSM-Editor: draw, change, show the notation;
+- the code language: the `language:` header of the notation, written as
+  the `platformLanguage` of the document, `--code-language` and the
+  plugin setting;
 - the Debian package and the installation of the editor plugin with pip
   (`--install-editor-plugin`).

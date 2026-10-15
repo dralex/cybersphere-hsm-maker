@@ -28,8 +28,8 @@ from .builder import (BuildError, GEOMETRY_FULL, GEOMETRY_UPDATE, build,
                       encode, verify)
 from .client import RequestLimitError, Usage
 from .language import AUTO, Texts, choose
-from .notation import (ERROR, NotationError, WARNING, analyze, extract, parse,
-                       render)
+from .notation import (ERROR, NotationError, WARNING, analyze, extract,
+                       language_spelling, parse, render)
 from .patcher import PatchError, patch
 from .reader import decode, read
 
@@ -73,7 +73,14 @@ class Result:
         self.reason = reason
 
 
-def convert(notation, geometry=GEOMETRY_FULL):
+def _chosen(code_language):
+    """The code language a run writes; None when the model declares it."""
+    if not code_language or code_language == AUTO:
+        return None
+    return language_spelling(code_language)
+
+
+def convert(notation, geometry=GEOMETRY_FULL, code_language=AUTO):
     """Parse, analyse, build, encode and verify one notation."""
     conversion = Conversion(notation)
     try:
@@ -81,6 +88,8 @@ def convert(notation, geometry=GEOMETRY_FULL):
     except NotationError as error:
         conversion.errors = error.issues
         return conversion
+    conversion.diagram.language = _chosen(code_language) or \
+        conversion.diagram.language
     issues = analyze(conversion.diagram)
     conversion.errors = [i for i in issues if i.severity == ERROR]
     conversion.warnings = [i for i in issues if i.severity == WARNING]
@@ -109,7 +118,8 @@ class Original:
         self.issues = {i.key for i in analyze(parse(self.notation), True)}
 
 
-def change(graphml, notation, geometry=GEOMETRY_UPDATE, old=None):
+def change(graphml, notation, geometry=GEOMETRY_UPDATE, old=None,
+           code_language=AUTO):
     """Apply one changed notation to the diagram of the GraphML text; the
     issues the original already has are warnings. Raise ReadError."""
     old = old if old is not None else Original(graphml)
@@ -119,6 +129,8 @@ def change(graphml, notation, geometry=GEOMETRY_UPDATE, old=None):
     except NotationError as error:
         conversion.errors = error.issues
         return conversion
+    conversion.diagram.language = _chosen(code_language) or \
+        conversion.diagram.language
     for issue in analyze(conversion.diagram, True):
         if issue.severity == ERROR and issue.key in old.issues:
             issue.severity = WARNING
@@ -159,26 +171,36 @@ def _spent(client, before):
                  client.usage.output_tokens - before.output_tokens)
 
 
+def _asked(question, texts, code_language):
+    """The question with the code language the model is told to use."""
+    chosen = _chosen(code_language)
+    if chosen is None:
+        return question
+    return question + '\n\n' + texts.text('code_language', language=chosen)
+
+
 def run(prompt, client, language=AUTO, geometry=GEOMETRY_FULL,
-        rounds=ROUNDS, log=None):
+        rounds=ROUNDS, log=None, code_language=AUTO):
     """Ask the model until the diagram is made, at most `rounds` times.
     `log(number, reply, conversion)` is called after every round."""
-    language = choose(language, prompt)
-    return _loop(prompt, lambda notation: convert(notation, geometry),
-                 client, Texts(language), rounds, log)
+    texts = Texts(choose(language, prompt))
+    return _loop(_asked(prompt, texts, code_language),
+                 lambda notation: convert(notation, geometry, code_language),
+                 client, texts, rounds, log)
 
 
 def run_update(graphml, prompt, client, language=AUTO,
-               geometry=GEOMETRY_UPDATE, rounds=ROUNDS, log=None):
+               geometry=GEOMETRY_UPDATE, rounds=ROUNDS, log=None,
+               code_language=AUTO):
     """Ask the model to change the diagram until the change applies, at
     most `rounds` times. Raise ReadError before the first request."""
-    language = choose(language, prompt)
-    texts = Texts(language)
+    texts = Texts(choose(language, prompt))
     old = Original(graphml)
     question = texts.text('update_request', diagram=old.notation,
                           change=prompt)
-    return _loop(question,
-                 lambda notation: change(graphml, notation, geometry, old),
+    return _loop(_asked(question, texts, code_language),
+                 lambda notation: change(graphml, notation, geometry, old,
+                                         code_language),
                  client, texts, rounds, log)
 
 

@@ -29,9 +29,10 @@ import textwrap
 import CyberiadaML
 
 from .builder import (BINDING_ERRORS, BuildError, GEOMETRY_UPDATE,
-                      PROPAGATION, actions_of, layout, new_element,
-                      new_transition)
-from .notation import Issue, INITIAL, MACHINE, STATE, PATH, UNNAMED
+                      PLATFORM_LANGUAGE, PROPAGATION, actions_of, layout,
+                      new_element, new_transition)
+from .notation import (Issue, INITIAL, MACHINE, STATE, PATH, UNNAMED,
+                       language_spelling)
 from .reader import decode
 
 COMMENT_TYPES = [CyberiadaML.elementComment, CyberiadaML.elementFormalComment]
@@ -494,6 +495,10 @@ class _Patch:
                 meta.set_string('description', self.new.description)
             else:
                 meta.remove_string('description')
+        # a missing language: header keeps the language of the diagram
+        if self.new.language and language_spelling(self.new.language) != \
+                language_spelling(self.old.language):
+            meta.set_string(PLATFORM_LANGUAGE, self.new.language)
 
 
 def patch(graphml, old, new, geometry=GEOMETRY_UPDATE):

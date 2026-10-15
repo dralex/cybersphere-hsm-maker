@@ -43,6 +43,7 @@ EXIT_USAGE = 2
 EXIT_SERVER = 3
 
 ENV_LANGUAGE = 'HSM_MAKER_LANGUAGE'
+ENV_CODE_LANGUAGE = 'HSM_MAKER_CODE_LANGUAGE'
 STDIN = '-'
 PROGRAM = 'hsm-maker'
 
@@ -82,6 +83,10 @@ def parser():
     commands.add_argument('--language', choices=[AUTO] + languages(),
                           help='the language of the instructions '
                           '(${}, auto)'.format(ENV_LANGUAGE))
+    commands.add_argument('--code-language', metavar='NAME',
+                          help='the programming language of the actions: '
+                          'auto (the model declares it) or a name, e.g. '
+                          'Python (${}, auto)'.format(ENV_CODE_LANGUAGE))
     commands.add_argument('--save-notation', metavar='FILE',
                           help='write the last notation to a file')
     commands.add_argument('--rounds', type=int, default=ROUNDS,
@@ -173,9 +178,11 @@ def _offline(options, language, graphml):
     notation = _read(options.notation)
     texts = Texts(choose(language, notation))
     if graphml is None:
-        conversion = convert(notation, options.geometry)
+        conversion = convert(notation, options.geometry,
+                             options.code_language)
     else:
-        conversion = change(graphml, notation, options.geometry)
+        conversion = change(graphml, notation, options.geometry,
+                            code_language=options.code_language)
     for issue in conversion.errors + conversion.warnings:
         prefix = '{}:{}: '.format(options.notation, issue.line) \
             if issue.line is not None else '{}: '.format(options.notation)
@@ -223,6 +230,8 @@ def _install_plugin(target):
 def main(argv=None):
     options = parser().parse_args(argv)
     language = options.language or os.environ.get(ENV_LANGUAGE) or AUTO
+    options.code_language = options.code_language or \
+        os.environ.get(ENV_CODE_LANGUAGE) or AUTO
     try:
         if options.install_editor_plugin is not None:
             return _install_plugin(options.install_editor_plugin)
@@ -244,10 +253,11 @@ def main(argv=None):
         log = _round if options.verbose else None
         if graphml is None:
             result = run(prompt, client, language, options.geometry,
-                         options.rounds, log)
+                         options.rounds, log, options.code_language)
         else:
             result = run_update(graphml, prompt, client, language,
-                                options.geometry, options.rounds, log)
+                                options.geometry, options.rounds, log,
+                                options.code_language)
         return _made(options, result)
     except (ConfigError, ReadError, PluginError) as error:
         _say('{}: {}'.format(PROGRAM, error))

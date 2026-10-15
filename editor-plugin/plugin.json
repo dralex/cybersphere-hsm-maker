@@ -90,6 +90,23 @@
       "description": "The language of the instructions; auto follows the description, else the editor"
     },
     {
+      "id": "code_language",
+      "type": "enum",
+      "label": "Code language",
+      "scope": "persistent",
+      "choices": [
+        "auto",
+        "C",
+        "C++",
+        "C#",
+        "Java",
+        "JavaScript",
+        "Python"
+      ],
+      "default": "auto",
+      "description": "The programming language of the actions; auto: the model declares it, a changed diagram keeps its own"
+    },
+    {
       "id": "rounds",
       "type": "int",
       "label": "Rounds",
@@ -118,6 +135,7 @@
         "protocol",
         "key",
         "language",
+        "code_language",
         "rounds"
       ],
       "description": "A new diagram from a description",
@@ -138,6 +156,8 @@
         "${param:protocol}",
         "--language",
         "${param:language}",
+        "--code-language",
+        "${param:code_language}",
         "--rounds",
         "${param:rounds}"
       ]
@@ -160,6 +180,7 @@
         "protocol",
         "key",
         "language",
+        "code_language",
         "rounds"
       ],
       "description": "The open diagram changed by a description of the change",
@@ -184,6 +205,8 @@
         "${param:protocol}",
         "--language",
         "${param:language}",
+        "--code-language",
+        "${param:code_language}",
         "--rounds",
         "${param:rounds}"
       ]

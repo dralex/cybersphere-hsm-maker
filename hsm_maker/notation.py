@@ -56,7 +56,9 @@ NAMED = (STATE, FINAL, TERMINATE, CHOICE, SUBMACHINE) + TAILED
 KEYWORDS = (MACHINE, STATE, INITIAL, FINAL, TERMINATE, CHOICE, HISTORY,
             SUBMACHINE)
 RESERVED = ('entry', 'exit', 'do', PROPAGATE, BLOCK, DEFER, 'else')
-HEADERS = ('name', 'description')
+HEADERS = ('name', 'description', 'language')
+# the code languages of the editor, in their spelling
+CODE_LANGUAGES = ('C', 'C++', 'C#', 'Java', 'JavaScript', 'Python')
 ELSE = 'else'
 PATH = '::'
 UNNAMED = '_'
@@ -76,7 +78,7 @@ NAME_TOKEN_RE = re.compile(r'"[^"\n]*"?|[^\s(]+')
 WAS_RE = re.compile(r'\(\s*was\s+([^)\n]*?)\s*\)')
 OF_RE = re.compile(r'of\s+(\S.*)\Z')
 FLAG_RE = re.compile(r'(propagate|block)(?=\s|->|/|\Z)')
-HEADER_RE = re.compile(r'(name|description):(.*)\Z', re.S)
+HEADER_RE = re.compile(r'(name|description|language):(.*)\Z', re.S)
 BEHAVIOUR_RE = re.compile(r'(entry|exit)\s*/(.*)\Z', re.S)
 DO_RE = re.compile(r'do\s*/')
 DEFER_RE = re.compile(r'defer\b')
@@ -200,6 +202,7 @@ class Diagram:
     def __init__(self):
         self.name = None
         self.description = None
+        self.language = None
         self.machines = []
         self.notes = []
 
@@ -372,6 +375,15 @@ def _event(event):
             raise _Fail('N14', event=event, word=word)
 
 
+def language_spelling(name):
+    """The spelling of CODE_LANGUAGES of a name equal to one of them but
+    for the case; else the name."""
+    for known in CODE_LANGUAGES:
+        if name and name.lower() == known.lower():
+            return known
+    return name
+
+
 def _header(diagram, line, key, value, issues):
     if diagram.machines or getattr(diagram, key) is not None:
         issues.append(Issue('N27', line.number, header=key + ':'))
@@ -380,7 +392,8 @@ def _header(diagram, line, key, value, issues):
     if not value:
         issues.append(Issue('N28', line.number, header=key + ':'))
         return
-    setattr(diagram, key, value)
+    setattr(diagram, key, language_spelling(value) if key == 'language'
+            else value)
 
 
 def _transition(parent, line, text):
@@ -846,6 +859,8 @@ def render(diagram):
         _with_action('name:', diagram.name, '', lines)
     if diagram.description:
         _with_action('description:', diagram.description, '', lines)
+    if diagram.language:
+        _with_action('language:', diagram.language, '', lines)
     for text in notes.get(None, []):
         lines.append('# note: ' + text)
     for machine in diagram.machines:

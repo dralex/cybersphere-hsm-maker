@@ -42,23 +42,25 @@ __all__ = ['GEOMETRY_FULL', 'GEOMETRY_NONE', 'GEOMETRY_UPDATE', 'AUTO',
 
 
 def make(prompt, client=None, *, protocol=None, url=None, model=None,
-         key=None, key_env=None, language=AUTO, geometry=GEOMETRY_FULL,
-         rounds=ROUNDS, max_requests=None, timeout=None, log=None):
+         key=None, key_env=None, language=AUTO, code_language=AUTO,
+         geometry=GEOMETRY_FULL, rounds=ROUNDS, max_requests=None,
+         timeout=None, log=None):
     """Make a diagram from the description `prompt`; return a Result."""
     if client is None:
         client = from_environment(protocol, url, model, key, key_env,
                                   max_requests=max_requests, timeout=timeout)
-    return run(prompt, client, language, geometry, rounds, log)
+    return run(prompt, client, language, geometry, rounds, log,
+               code_language)
 
 
 def update(graphml, prompt, client=None, *, protocol=None, url=None,
            model=None, key=None, key_env=None, language=AUTO,
-           geometry=GEOMETRY_UPDATE, rounds=ROUNDS, max_requests=None,
-           timeout=None, log=None):
+           code_language=AUTO, geometry=GEOMETRY_UPDATE, rounds=ROUNDS,
+           max_requests=None, timeout=None, log=None):
     """Change the diagram of the GraphML text by the description `prompt`;
     return a Result with the changes."""
     if client is None:
         client = from_environment(protocol, url, model, key, key_env,
                                   max_requests=max_requests, timeout=timeout)
     return run_update(graphml, prompt, client, language, geometry, rounds,
-                      log)
+                      log, code_language)

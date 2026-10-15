@@ -69,7 +69,9 @@ from the variable named after the server (`DEEPSEEK_API_KEY` for
 `api.deepseek.com`); a local server needs none. The prompt comes from the
 command line, from a file (`-f`) or from the standard input. `--language`
 selects the language of the instructions (`en`, `ru`; by default the
-language of the prompt). `--geometry none` saves the diagram without the
+language of the prompt). `--code-language` sets the programming language
+of the actions (`Python`, `C++`, ...; by default the model declares it).
+`--geometry none` saves the diagram without the
 layout. `--notation FILE` builds a diagram from a notation file without a
 model.
 
