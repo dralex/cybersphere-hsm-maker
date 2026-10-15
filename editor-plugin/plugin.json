@@ -163,7 +163,6 @@
         "rounds"
       ],
       "description": "The open diagram changed by a description of the change",
-<<<<<<< HEAD
       "argv": [
         "-m",
         "hsm_maker",
