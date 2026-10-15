@@ -32,6 +32,8 @@ from .notation import WARNING
 AUTO = 'auto'
 DEFAULT = 'en'
 CYRILLIC_LANGUAGE = 'ru'
+# the interface language the editor gives a plugin run
+EDITOR_LANGUAGE = 'CYBERIADA_EDITOR_LANGUAGE'
 
 PROMPTS = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'prompts')
 SYSTEM = 'system.md'
@@ -55,10 +57,18 @@ def detect(text):
     return CYRILLIC_LANGUAGE if cyrillic > latin else DEFAULT
 
 
-def choose(language, prompt):
-    """The language of a run: detected from the prompt for AUTO."""
+def choose(language, prompt, environ=None):
+    """The language of a run: detected from the prompt for AUTO; a prompt
+    without a majority of letters takes the editor's language, else DEFAULT."""
     if not language or language == AUTO:
-        language = detect(prompt or '')
+        text = prompt or ''
+        cyrillic = len(CYRILLIC_RE.findall(text))
+        latin = len(LATIN_RE.findall(text))
+        if cyrillic != latin:
+            language = detect(text)
+        else:
+            editor = (os.environ if environ is None else environ).get(EDITOR_LANGUAGE, '')
+            language = editor if editor in languages() else DEFAULT
     if language not in languages():
         raise ConfigError('unknown language {!r}: {}'.format(
             language, ', '.join([AUTO] + languages())))

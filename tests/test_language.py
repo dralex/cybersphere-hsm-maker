@@ -55,6 +55,13 @@ def test_choose():
     assert L.choose(L.AUTO, 'Тостер') == 'ru'
     assert L.choose(None, 'Toaster') == 'en'
     assert L.choose('ru', 'Toaster') == 'ru'
+    # no letters to go by: the editor's language, else the default
+    editor = {L.EDITOR_LANGUAGE: 'ru'}
+    assert L.choose(L.AUTO, '', editor) == 'ru'
+    assert L.choose(L.AUTO, '123', editor) == 'ru'
+    assert L.choose(L.AUTO, 'Toaster', editor) == 'en'
+    assert L.choose(L.AUTO, '', {L.EDITOR_LANGUAGE: 'de'}) == 'en'
+    assert L.choose(L.AUTO, '', {}) == 'en'
     with pytest.raises(ConfigError):
         L.choose('de', 'Toaster')
 

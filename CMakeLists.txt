@@ -27,6 +27,7 @@ install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/editor-plugin/plugin.json
               ${CMAKE_CURRENT_SOURCE_DIR}/editor-plugin/README.md
         DESTINATION ${PLUGIN_INSTALL_DIR})
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/editor-plugin/icons
+                  ${CMAKE_CURRENT_SOURCE_DIR}/editor-plugin/i18n
         DESTINATION ${PLUGIN_INSTALL_DIR})
 
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/ChangeLog.md

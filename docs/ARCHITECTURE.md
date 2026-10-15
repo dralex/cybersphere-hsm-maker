@@ -225,7 +225,9 @@ declarations, prompts, colours, meta parameters.
 
 A language is a directory: adding one needs no code. The language of a
 run (`--language`, `HSM_MAKER_LANGUAGE`) is `auto` by default: Russian when
-the prompt has more Cyrillic than Latin letters, else English. The same
+the prompt has more Cyrillic than Latin letters, English when it has more
+Latin ones, and with no majority the editor's interface language
+(`CYBERIADA_EDITOR_LANGUAGE`, given to a plugin run), else English. The same
 language serves the system prompt, the feedback to the model and the
 issues the command prints. The Russian texts use the terms of PNST 984,
 clause 3. The keywords of the notation are English in every language;

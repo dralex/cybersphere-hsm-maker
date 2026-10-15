@@ -184,8 +184,23 @@ def test_install_pins_the_python(tmp_path):
     assert [a['argv'] for a in installed['actions']] == \
         [['/opt/py/bin/python'] + a['argv'] for a in original['actions']]
     assert installed['env'] == dict(original['env'], PYTHONPATH=ROOT)
-    for name in ('README.md', 'icons/draw.svg', 'icons/change.svg'):
+    for name in ('README.md', 'icons/draw.svg', 'icons/change.svg', 'i18n/ru.json'):
         assert os.path.isfile(os.path.join(folder, name))
+
+
+def test_translation():
+    # every key is a text of the descriptor and every text is translated
+    original = descriptor()
+    with open(os.path.join(ROOT, 'editor-plugin', 'i18n', 'ru.json'),
+              encoding='utf-8') as file:
+        ru = json.load(file)
+    texts = {original['name'], original.get('description', '')}
+    for item in original.get('parameters', []) + original['actions']:
+        texts.update([item.get('label', ''), item.get('description', '')])
+        texts.update(item.get('choices', []))
+    texts.discard('')
+    assert sorted(set(ru) - texts) == []
+    assert sorted(texts - set(ru)) == []
 
 
 def test_install_replaces_only_the_plugin(tmp_path):

@@ -52,7 +52,11 @@ buttons.
   server (`https://api.deepseek.com/v1`, any server of the
   `chat-completions` or `messages` protocol, a local one too), the key as
   `env:NAME` or `file:PATH` (empty for a local server), the language of the
-  instructions and the rounds of correction.
+  instructions and the rounds of correction. With `auto` the description
+  decides the language; one without a majority of letters takes the
+  editor's interface language.
+* The menu and the dialog texts follow the editor's interface language
+  (`i18n/ru.json`).
 
 A run takes from a few seconds to a few minutes; the Output tab shows the
 rounds and the tokens spent, Cancel stops it.

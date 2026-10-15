@@ -6,58 +6,200 @@
   "description": "Draws a new diagram from a description or changes the open one with a language model; the description and the diagram are sent to the model server",
   "icon": "icons/draw.svg",
   "interpreter": "python3",
-  "env": { "PYTHONUTF8": "1" },
+  "env": {
+    "PYTHONUTF8": "1"
+  },
   "parameters": [
-    { "id": "prompt", "type": "text", "label": "Description", "scope": "run",
-      "required": true, "language": "markdown",
-      "description": "The system the diagram is about, in any language" },
-    { "id": "change", "type": "text", "label": "What to change", "scope": "run",
-      "required": true, "language": "markdown",
-      "description": "The change of the open diagram" },
-    { "id": "layout", "type": "enum", "label": "Layout", "scope": "run",
-      "choices": ["update", "full"], "default": "update",
-      "description": "update keeps the drawing and places the new elements; full lays the diagram out anew" },
-    { "id": "model", "type": "string", "label": "Model", "scope": "persistent",
-      "required": true, "default": "deepseek-flash" },
-    { "id": "url", "type": "string", "label": "Server", "scope": "persistent",
-      "required": true, "default": "https://api.deepseek.com/v1" },
-    { "id": "protocol", "type": "enum", "label": "Protocol", "scope": "persistent",
-      "choices": ["chat-completions", "messages"], "default": "chat-completions" },
-    { "id": "key", "type": "secret", "label": "API key", "scope": "persistent",
-      "default": "env:DEEPSEEK_API_KEY", "export": "HSM_MAKER_API_KEY",
-      "description": "env:NAME or file:PATH; empty for a local server" },
-    { "id": "language", "type": "enum", "label": "Language", "scope": "persistent",
-      "choices": ["auto", "en", "ru"], "default": "auto",
-      "description": "The language of the instructions; auto follows the description" },
-    { "id": "rounds", "type": "int", "label": "Rounds", "scope": "persistent",
-      "default": 3, "min": 1, "max": 10,
-      "description": "How many times the model may correct its answer" }
+    {
+      "id": "prompt",
+      "type": "text",
+      "label": "Description",
+      "scope": "run",
+      "required": true,
+      "language": "markdown",
+      "description": "The system the diagram is about, in any language"
+    },
+    {
+      "id": "change",
+      "type": "text",
+      "label": "What to change",
+      "scope": "run",
+      "required": true,
+      "language": "markdown",
+      "description": "The change of the open diagram"
+    },
+    {
+      "id": "layout",
+      "type": "enum",
+      "label": "Layout",
+      "scope": "run",
+      "choices": [
+        "update",
+        "full"
+      ],
+      "default": "update",
+      "description": "update keeps the drawing and places the new elements; full lays the diagram out anew"
+    },
+    {
+      "id": "model",
+      "type": "string",
+      "label": "Model",
+      "scope": "persistent",
+      "required": true,
+      "default": "deepseek-flash"
+    },
+    {
+      "id": "url",
+      "type": "string",
+      "label": "Server",
+      "scope": "persistent",
+      "required": true,
+      "default": "https://api.deepseek.com/v1"
+    },
+    {
+      "id": "protocol",
+      "type": "enum",
+      "label": "Protocol",
+      "scope": "persistent",
+      "choices": [
+        "chat-completions",
+        "messages"
+      ],
+      "default": "chat-completions"
+    },
+    {
+      "id": "key",
+      "type": "secret",
+      "label": "API key",
+      "scope": "persistent",
+      "default": "env:DEEPSEEK_API_KEY",
+      "export": "HSM_MAKER_API_KEY",
+      "description": "env:NAME or file:PATH; empty for a local server"
+    },
+    {
+      "id": "language",
+      "type": "enum",
+      "label": "Language",
+      "scope": "persistent",
+      "choices": [
+        "auto",
+        "en",
+        "ru"
+      ],
+      "default": "auto",
+      "description": "The language of the instructions; auto follows the description, else the editor"
+    },
+    {
+      "id": "rounds",
+      "type": "int",
+      "label": "Rounds",
+      "scope": "persistent",
+      "default": 3,
+      "min": 1,
+      "max": 10,
+      "description": "How many times the model may correct its answer"
+    }
   ],
   "actions": [
-    { "id": "draw", "label": "Draw a new diagram...", "result": "new-document",
-      "toolbar": true, "icon": "icons/draw.svg", "timeout": 600,
-      "load": { "strict": true },
-      "parameters": ["prompt", "model", "url", "protocol", "key", "language", "rounds"],
+    {
+      "id": "draw",
+      "label": "Draw a new diagram...",
+      "result": "new-document",
+      "toolbar": true,
+      "icon": "icons/draw.svg",
+      "timeout": 600,
+      "load": {
+        "strict": true
+      },
+      "parameters": [
+        "prompt",
+        "model",
+        "url",
+        "protocol",
+        "key",
+        "language",
+        "rounds"
+      ],
       "description": "A new diagram from a description",
-      "argv": ["-m", "hsm_maker", "-f", "${param-file:prompt}", "-o", "${output}",
-               "--diagnostics", "${diagnostics}",
-               "--model", "${param:model}", "--url", "${param:url}",
-               "--protocol", "${param:protocol}", "--language", "${param:language}",
-               "--rounds", "${param:rounds}"] },
-    { "id": "change", "label": "Change the diagram...", "result": "replace",
-      "toolbar": true, "icon": "icons/change.svg", "timeout": 600,
-      "load": { "strict": true },
-      "parameters": ["change", "layout", "model", "url", "protocol", "key", "language", "rounds"],
+      "argv": [
+        "-m",
+        "hsm_maker",
+        "-f",
+        "${param-file:prompt}",
+        "-o",
+        "${output}",
+        "--diagnostics",
+        "${diagnostics}",
+        "--model",
+        "${param:model}",
+        "--url",
+        "${param:url}",
+        "--protocol",
+        "${param:protocol}",
+        "--language",
+        "${param:language}",
+        "--rounds",
+        "${param:rounds}"
+      ]
+    },
+    {
+      "id": "change",
+      "label": "Change the diagram...",
+      "result": "replace",
+      "toolbar": true,
+      "icon": "icons/change.svg",
+      "timeout": 600,
+      "load": {
+        "strict": true
+      },
+      "parameters": [
+        "change",
+        "layout",
+        "model",
+        "url",
+        "protocol",
+        "key",
+        "language",
+        "rounds"
+      ],
       "description": "The open diagram changed by a description of the change",
-      "argv": ["-m", "hsm_maker", "--update", "${input}", "-f", "${param-file:change}",
-               "--geometry", "${param:layout}", "-o", "${output}",
-               "--diagnostics", "${diagnostics}",
-               "--model", "${param:model}", "--url", "${param:url}",
-               "--protocol", "${param:protocol}", "--language", "${param:language}",
-               "--rounds", "${param:rounds}"] },
-    { "id": "notation", "label": "Show the notation", "result": "log",
+      "argv": [
+        "-m",
+        "hsm_maker",
+        "--update",
+        "${input}",
+        "-f",
+        "${param-file:change}",
+        "--geometry",
+        "${param:layout}",
+        "-o",
+        "${output}",
+        "--diagnostics",
+        "${diagnostics}",
+        "--model",
+        "${param:model}",
+        "--url",
+        "${param:url}",
+        "--protocol",
+        "${param:protocol}",
+        "--language",
+        "${param:language}",
+        "--rounds",
+        "${param:rounds}"
+      ]
+    },
+    {
+      "id": "notation",
+      "label": "Show the notation",
+      "result": "log",
       "parameters": [],
       "description": "The open diagram in the notation the model reads",
-      "argv": ["-m", "hsm_maker", "--render", "${input}"] }
+      "argv": [
+        "-m",
+        "hsm_maker",
+        "--render",
+        "${input}"
+      ]
+    }
   ]
 }
