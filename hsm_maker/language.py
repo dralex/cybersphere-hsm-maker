@@ -33,7 +33,7 @@ AUTO = 'auto'
 DEFAULT = 'en'
 CYRILLIC_LANGUAGE = 'ru'
 # the interface language the editor gives a plugin run
-EDITOR_LANGUAGE = 'CYBERIADA_EDITOR_LANGUAGE'
+EDITOR_LANGUAGE = 'CYBERIADA_PRO_LANGUAGE'
 
 PROMPTS = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'prompts')
 SYSTEM = 'system.md'

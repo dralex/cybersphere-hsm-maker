@@ -43,7 +43,7 @@ The Debian package installs the maker, the command and the editor plugin:
 `ctest` runs the tests with the Python CMake finds; it needs pytest and the
 binding (`-DPython3_EXECUTABLE=...` selects another one). The package
 depends on `python3-libcyberiadamlpp`; the plugin goes to
-`/usr/share/cyberiada-editor/plugins/hsm-maker/`, where `CyberiadaHSM-Editor`
+`/usr/share/cyberiada-pro/plugins/hsm-maker/`, where `CyberiadaPro`
 finds it.
 
 With pip (a virtual environment, the user site, Windows, macOS) the binding
@@ -82,7 +82,7 @@ model.
 keeps its identifier, its place and its comments, the new elements are
 placed around the drawing. `--render FILE` prints a diagram in the notation.
 `--diagnostics FILE` writes the issues and the changes as JSON.
-`editor-plugin/` is the plugin of `CyberiadaHSM-Editor` (see its README).
+`editor-plugin/` is the plugin of `CyberiadaPro` (see its README).
 
 From Python:
 
@@ -104,5 +104,5 @@ documents, both protocols of the client against a local stub server, the
 repair loop with a scripted model and the command line. The documents are
 also checked with the validator of `cyberiadaml-compat-tests` when that
 repository is found beside this one, and the editor plugin is run in the
-batch mode of `CyberiadaHSM-Editor` when its build is found there. `pylint.sh` runs the linter over the
+batch mode of `CyberiadaPro` when its build is found there. `pylint.sh` runs the linter over the
 sources. `REGEN=1` records the good files of `tests/good` again.

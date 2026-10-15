@@ -176,11 +176,10 @@ The installation of the editor plugin (`editor-plugin/`).
 * `PLUGIN_ID` - `'hsm-maker'`.
 * `source()` - the plugin directory of this installation: `editor-plugin/`
   beside the package in a source tree, else
-  `share/cyberiada-editor/plugins/hsm-maker` under `sys.prefix` or under
+  `share/cyberiada-pro/plugins/hsm-maker` under `sys.prefix` or under
   the user base of `site`; `None` when none has `plugin.json`.
 * `user_folder(environ=None, system=None)` - the user plugin folder of
-  `CyberiadaHSM-Editor`: `<data>/Cyberiada/Cyberiada State Machine
-  Editor/plugins`, `<data>` being `XDG_DATA_HOME` (`~/.local/share`) on
+  `CyberiadaPro`: `<data>/Cyberiada/CyberiadaPro/plugins`, `<data>` being `XDG_DATA_HOME` (`~/.local/share`) on
   Linux, `APPDATA` on Windows, `~/Library/Application Support` on macOS;
   `system` is a `platform.system()` name.
 * `pinned(descriptor, executable)` - the descriptor (a dict) without

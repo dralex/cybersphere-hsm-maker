@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 #  Cybersphere HSM Maker
 #
-#  The tests of the plugin of CyberiadaHSM-Editor
+#  The tests of the plugin of CyberiadaPro
 #
 #  Copyright (C) 2026 Alexey Fedoseev <aleksey@fedoseev.net>
 #
@@ -36,7 +36,7 @@ from hsm_maker import plugin as P
 
 PLUGIN = os.path.join(ROOT, 'editor-plugin', 'plugin.json')
 EDITOR = os.path.join(os.path.dirname(ROOT), 'CyberiadaHSM-Editor', 'build',
-                      'CyberiadaEditor')
+                      'CyberiadaPro')
 RESULTS = ('replace', 'new-document', 'diagnostics', 'files', 'log')
 VARIABLE_RE = re.compile(r'\$\{([a-z_-]+)(?::([a-z_]+))?\}')
 VARIABLES = ('input', 'output', 'diagnostics', 'outdir', 'rundir',
@@ -74,13 +74,13 @@ def editor(arguments, tmp_path, key=None, installed=False):
     installed plugins of its user folder (XDG_DATA_HOME under tmp_path) and
     no Python of this run on PATH."""
     if not os.access(EDITOR, os.X_OK):
-        pytest.skip('CyberiadaEditor is not built beside the repository')
+        pytest.skip('CyberiadaPro is not built beside the repository')
     environment = dict(os.environ)
     environment.update({
         'QT_QPA_PLATFORM': 'offscreen',
         'XDG_CONFIG_HOME': str(tmp_path / 'config'),
         'XDG_DATA_HOME': str(tmp_path / 'data'),
-        'CYBERIADA_EDITOR_PLUGIN_PATH': '',
+        'CYBERIADA_PRO_PLUGIN_PATH': '',
     })
     if installed:
         environment.pop('PYTHONPATH', None)
@@ -193,8 +193,7 @@ def test_version():
 
 
 def test_user_folder():
-    tail = os.path.join('Cyberiada', 'Cyberiada State Machine Editor',
-                        'plugins')
+    tail = os.path.join('Cyberiada', 'CyberiadaPro', 'plugins')
     assert P.user_folder({'XDG_DATA_HOME': '/x', 'HOME': '/h'}, 'Linux') == \
         os.path.join('/x', tail)
     assert P.user_folder({'HOME': '/h'}, 'Linux') == \

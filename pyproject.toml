@@ -32,11 +32,11 @@ hsm_maker = ["prompts/*/*.md", "prompts/*/*.json"]
 # the editor plugin under the install prefix; hsm-maker --install-editor-plugin
 # copies it into the plugin folder of the editor
 [tool.setuptools.data-files]
-"share/cyberiada-editor/plugins/hsm-maker" = [
+"share/cyberiada-pro/plugins/hsm-maker" = [
     "editor-plugin/plugin.json", "editor-plugin/README.md"]
-"share/cyberiada-editor/plugins/hsm-maker/icons" = [
+"share/cyberiada-pro/plugins/hsm-maker/icons" = [
     "editor-plugin/icons/draw.svg", "editor-plugin/icons/change.svg"]
-"share/cyberiada-editor/plugins/hsm-maker/i18n" = ["editor-plugin/i18n/ru.json"]
+"share/cyberiada-pro/plugins/hsm-maker/i18n" = ["editor-plugin/i18n/ru.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

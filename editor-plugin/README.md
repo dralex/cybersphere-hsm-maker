@@ -1,6 +1,6 @@
-# The HSM Maker plugin of the Cyberiada HSM Editor
+# The HSM Maker plugin of CyberiadaPro
 
-The plugin brings the maker into `CyberiadaHSM-Editor`: draw a new diagram
+The plugin brings the maker into `CyberiadaPro`: draw a new diagram
 from a description, change the open diagram by a description of the
 change, or show the open diagram in the notation the model reads. The
 description and the diagram are sent to the model server you choose.
@@ -25,9 +25,9 @@ description and the diagram are sent to the model server you choose.
 
 | System | The user plugin folder |
 |---|---|
-| Linux | `~/.local/share/Cyberiada/Cyberiada State Machine Editor/plugins/` |
-| Windows | `%APPDATA%\Cyberiada\Cyberiada State Machine Editor\plugins\` |
-| macOS | `~/Library/Application Support/Cyberiada/Cyberiada State Machine Editor/plugins/` |
+| Linux | `~/.local/share/Cyberiada/CyberiadaPro/plugins/` |
+| Windows | `%APPDATA%\Cyberiada\CyberiadaPro\plugins\` |
+| macOS | `~/Library/Application Support/Cyberiada/CyberiadaPro/plugins/` |
 
 Restart the editor: the Plugins menu gets HSM Maker, the toolbar its two
 buttons.

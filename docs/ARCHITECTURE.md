@@ -53,7 +53,7 @@ framework, no vendor SDK, no editor.
 | R7 | Python 3.8+, the standard library and the binding only. | Code layout |
 | R8 | Limit the requests and report the usage: requests, tokens. | The client |
 | R9 | Change an existing diagram by a description of the change; what is not changed keeps its identity, its place and the parts the notation does not show. | The update |
-| R10 | Run from `CyberiadaHSM-Editor`: draw a new diagram, change the open one. | The editor plugin |
+| R10 | Run from `CyberiadaPro`: draw a new diagram, change the open one. | The editor plugin |
 | R11 | Declare the programming language of the actions: the model's choice or the user's. | The code language |
 
 ## The notation
@@ -142,7 +142,7 @@ is saved:
 The order of the lines in the notation is the initial order of the
 vertices inside each layer of the layout, so a diagram written in the
 order of its flow is drawn in that order. A document without geometry
-opens in `CyberiadaHSM-Editor` only with the reconstruction on loading.
+opens in `CyberiadaPro` only with the reconstruction on loading.
 
 ## The update
 
@@ -228,7 +228,7 @@ A language is a directory: adding one needs no code. The language of a
 run (`--language`, `HSM_MAKER_LANGUAGE`) is `auto` by default: Russian when
 the prompt has more Cyrillic than Latin letters, English when it has more
 Latin ones, and with no majority the editor's interface language
-(`CYBERIADA_EDITOR_LANGUAGE`, given to a plugin run), else English. The same
+(`CYBERIADA_PRO_LANGUAGE`, given to a plugin run), else English. The same
 language serves the system prompt, the feedback to the model and the
 issues the command prints. The Russian texts use the terms of PNST 984,
 clause 3. The keywords of the notation are English in every language;
@@ -309,13 +309,13 @@ issues and the changes for the editor. The details are in `API.md`.
 | `hsm_maker/cli.py` | the command `hsm-maker` |
 | `hsm_maker/plugin.py` | the installation of the editor plugin |
 | `hsm_maker/prompts/` | the texts of the languages |
-| `editor-plugin/` | the plugin of `CyberiadaHSM-Editor`: `plugin.json`, the icons, its README |
+| `editor-plugin/` | the plugin of `CyberiadaPro`: `plugin.json`, the icons, its README |
 | `pyproject.toml` | the Python package (pip, the wheel) |
 | `CMakeLists.txt`, `HsmMakerPackOptions.cmake.in` | the Debian package |
 
 ## The editor plugin
 
-`editor-plugin/` is the plugin of `CyberiadaHSM-Editor` (contract `api` 1
+`editor-plugin/` is the plugin of `CyberiadaPro` (contract `api` 1
 of the editor's `docs/PLUGIN-API.md`): a descriptor that runs `python3 -m
 hsm_maker`, no adapter. Its README is for the users of the editor.
 
@@ -365,11 +365,11 @@ must be importable by the interpreter the editor uses for `python3`.
 where the editor looks for plugins.
 
 ```
- editor-plugin/ --+--> cpack -G DEB ---> /usr/share/cyberiada-editor/plugins/hsm-maker/
+ editor-plugin/ --+--> cpack -G DEB ---> /usr/share/cyberiada-pro/plugins/hsm-maker/
  hsm_maker/     --+                      /usr/lib/python3/dist-packages/hsm_maker/
                   |                      /usr/bin/hsm-maker
                   |
-                  +--> pip install ----> <prefix>/share/cyberiada-editor/plugins/hsm-maker/
+                  +--> pip install ----> <prefix>/share/cyberiada-pro/plugins/hsm-maker/
                                          <prefix>/.../site-packages/hsm_maker/
                                          <prefix>/bin/hsm-maker
                                                 |
@@ -377,13 +377,13 @@ where the editor looks for plugins.
                                                 v
                                  <user folder>/hsm-maker/   (argv[0] = <prefix>'s Python)
 
- the editor looks in: CYBERIADA_EDITOR_PLUGIN_PATH, <user folder>,
-                      <editor>/../share/cyberiada-editor/plugins/
+ the editor looks in: CYBERIADA_PRO_PLUGIN_PATH, <user folder>,
+                      <editor>/../share/cyberiada-pro/plugins/
 ```
 
 | Package | Contents | Needs |
 |---|---|---|
-| `python3-cybersphere-hsm-maker` (deb, `all`) | the package in `/usr/lib/python3/dist-packages`, `/usr/bin/hsm-maker`, the plugin in `/usr/share/cyberiada-editor/plugins/hsm-maker/`, the documents | `python3 (>= 3.8)`, `python3-libcyberiadamlpp (>= 1.0.8)`; enhances `cyberiada-editor` |
+| `python3-cybersphere-hsm-maker` (deb, `all`) | the package in `/usr/lib/python3/dist-packages`, `/usr/bin/hsm-maker`, the plugin in `/usr/share/cyberiada-pro/plugins/hsm-maker/`, the documents | `python3 (>= 3.8)`, `python3-libcyberiadamlpp (>= 1.0.8)`; enhances `cyberiada-pro` |
 | `cybersphere-hsm-maker` (wheel) | the package, `hsm-maker`, the plugin as data files under the install prefix | the `CyberiadaML` binding installed apart (not a pip package) |
 
 * The deb plugin keeps the logical interpreter `python3`: the system Python
@@ -421,7 +421,7 @@ default options:
 | traffic light with a night mode | ru | 1 | 1650 / 1303 | a composite of 3 states, a path target |
 
 Every document passed the strict check of the library and of `cgmlval`
-and opened in `CyberiadaHSM-Editor`. The checks see the form of a diagram,
+and opened in `CyberiadaPro`. The checks see the form of a diagram,
 not its design: a model may simplify the behaviour of a description.
 
 The update runs of the same day, `--update` with the default options; the
@@ -454,7 +454,7 @@ transition without one, the ends of a route on a grown state).
 | the layout | `libhtreegeom` through the binding |
 | the validation of the documents in the tests | `cgmlval` of `cyberiadaml-compat-tests` |
 | showing a diagram as text | `hsmview.py` of `hsm-console-viewer` |
-| editing a diagram by hand | `CyberiadaHSM-Editor` |
+| editing a diagram by hand | `CyberiadaPro` |
 
 ## Known limits
 

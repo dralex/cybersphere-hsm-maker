@@ -6,8 +6,8 @@ project(cybersphere-hsm-maker VERSION 0.1.0 LANGUAGES NONE)
 # the place of the pure Python packages on Debian
 set(PYTHON_INSTALL_DIR "lib/python3/dist-packages" CACHE STRING
     "the directory of the hsm_maker package under the prefix")
-# the system plugin folder of CyberiadaHSM-Editor
-set(PLUGIN_INSTALL_DIR "share/cyberiada-editor/plugins/hsm-maker")
+# the system plugin folder of CyberiadaPro
+set(PLUGIN_INSTALL_DIR "share/cyberiada-pro/plugins/hsm-maker")
 set(DOC_INSTALL_DIR "share/doc/python3-cybersphere-hsm-maker")
 # the package directories do not follow the umask of the build
 set(CMAKE_INSTALL_DEFAULT_DIRECTORY_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE

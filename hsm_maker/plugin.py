@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 #  Cybersphere HSM Maker
 #
-#  The installation of the plugin of CyberiadaHSM-Editor
+#  The installation of the plugin of CyberiadaPro
 #
 #  Copyright (C) 2026 Alexey Fedoseev <aleksey@fedoseev.net>
 #
@@ -34,9 +34,9 @@ PLUGIN_ID = 'hsm-maker'
 DESCRIPTOR = 'plugin.json'
 SOURCE_TREE = 'editor-plugin'
 # the data files of the packages, the system plugin folder of the editor
-SHARE = ('share', 'cyberiada-editor', 'plugins', PLUGIN_ID)
+SHARE = ('share', 'cyberiada-pro', 'plugins', PLUGIN_ID)
 # the AppDataLocation of the editor (its vendor and application) + plugins
-EDITOR_FOLDER = ('Cyberiada', 'Cyberiada State Machine Editor', 'plugins')
+EDITOR_FOLDER = ('Cyberiada', 'CyberiadaPro', 'plugins')
 
 
 class PluginError(Exception):
