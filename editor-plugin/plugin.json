@@ -163,6 +163,7 @@
         "rounds"
       ],
       "description": "The open diagram changed by a description of the change",
+<<<<<<< HEAD
       "argv": [
         "-m",
         "hsm_maker",
@@ -193,6 +194,7 @@
       "label": "Show the notation",
       "result": "log",
       "parameters": [],
+      "icon": "icons/check.svg",
       "description": "The open diagram in the notation the model reads",
       "argv": [
         "-m",
