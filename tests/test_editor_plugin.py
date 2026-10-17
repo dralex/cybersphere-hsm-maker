@@ -20,6 +20,7 @@
 #
 #  -----------------------------------------------------------------------------
 
+import functools
 import json
 import os
 import re
@@ -43,6 +44,22 @@ VARIABLES = ('input', 'output', 'diagnostics', 'outdir', 'rundir',
              'plugin_dir', 'request', 'param', 'param-file', 'meta',
              'selection', 'document', 'document_dir', 'document_name')
 TIMEOUT = 120
+
+
+@functools.lru_cache(maxsize=None)
+def editor_starts():
+    """The editor beside the repository starts here: a build of another
+    machine (a source tree mounted into a container) cannot load its libraries."""
+    if not os.access(EDITOR, os.X_OK):
+        return False
+    try:
+        run = subprocess.run([EDITOR, '--help'],
+                             env=dict(os.environ, QT_QPA_PLATFORM='offscreen'),
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                             timeout=TIMEOUT, check=False)
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return run.returncode == 0
 
 
 def descriptor():
@@ -73,8 +90,8 @@ def editor(arguments, tmp_path, key=None, installed=False):
     """The editor batch with the plugin of the repository, or with the
     installed plugins of its user folder (XDG_DATA_HOME under tmp_path) and
     no Python of this run on PATH."""
-    if not os.access(EDITOR, os.X_OK):
-        pytest.skip('CyberiadaPro is not built beside the repository')
+    if not editor_starts():
+        pytest.skip('CyberiadaPro is not built beside the repository or does not start here')
     environment = dict(os.environ)
     environment.update({
         'QT_QPA_PLATFORM': 'offscreen',
