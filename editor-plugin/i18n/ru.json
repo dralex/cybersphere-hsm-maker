@@ -1,6 +1,6 @@
 {
-  "HSM Maker": "HSM Maker",
-  "Draws a new diagram from a description or changes the open one with a language model; the description and the diagram are sent to the model server": "Рисует новую диаграмму по описанию или изменяет открытую с помощью языковой модели; описание и диаграмма отправляются на сервер модели",
+  "HSM Maker": "Генератор диаграмм ПРИМС",
+  "Draws a new diagram from a description or changes the open one with a language model; the description and the diagram are sent to the model server": "Рисует новую диаграмму ПРИМС по описанию или изменяет открытую с помощью языковой модели; описание и диаграмма отправляются на сервер модели",
   "Description": "Описание",
   "The system the diagram is about, in any language": "Система, которую описывает диаграмма, на любом языке",
   "What to change": "Что изменить",
