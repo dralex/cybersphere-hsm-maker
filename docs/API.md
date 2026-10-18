@@ -29,7 +29,7 @@ The names `Result`, `Conversion`, `Change`, `Issue`, `Client`, `Usage`,
 
 ## Module notation
 
-The notation tree, its parser and its checks. It does not use the binding.
+The notation tree, its parser and its checks. It does not use the `CyberiadaML` module.
 
 * `MACHINE`, `STATE`, `INITIAL`, `FINAL`, `TERMINATE`, `CHOICE`, `HISTORY`,
   `DEEP_HISTORY`, `ENTRY_POINT`, `EXIT_POINT`, `SUBMACHINE` - the kinds of
@@ -76,7 +76,7 @@ The tree to a `CyberiadaML.Document`.
 
 * `GEOMETRY_FULL`, `GEOMETRY_NONE`, `GEOMETRY_UPDATE` - `'full'`, `'none'`
   and `'update'`.
-* `BINDING_ERRORS` - the tuple of the exception classes of the binding.
+* `BINDING_ERRORS` - the tuple of the exception classes of the `CyberiadaML` module.
 * `BuildError(issues)` - the library rejected the document.
 * `build(diagram, geometry=GEOMETRY_FULL)` - create the document of an
   analysed diagram; with `GEOMETRY_FULL` lay it out. Return the document.

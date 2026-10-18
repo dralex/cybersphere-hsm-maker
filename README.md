@@ -6,7 +6,7 @@ State Machine diagram stored in the CyberiadaML-GraphML format (PNST
 1044-2025). A language model writes the structure of the diagram in a
 compact text notation; the maker checks it, returns the mistakes to the
 model until the diagram is correct, builds the document with the
-`CyberiadaML` binding and lays it out. The maker is written in pure Python
+`CyberiadaML` module and lays it out. The maker is written in pure Python
 3 and talks to any model server of the `chat-completions` or the
 `messages` protocol.
 
@@ -27,9 +27,10 @@ The documentation is located in the `docs` directory and contains:
 ## Requirements
 
 * python3 (version 3.8+)
-* libcyberiadamlpp-py (version 1.0.8+, the `CyberiadaML` module and its
-  dependencies: libcyberiadamlpp and libcyberiadaml 1.0.8+, libhtreegeom
-  1.2+)
+* the `CyberiadaML` module: libcyberiadamlpp-py (version 1.0.8+, with
+  libcyberiadamlpp and libcyberiadaml 1.0.8+, libhtreegeom 1.2+) or, when
+  it is not installed, cyberiadaml-py (version 1.8+, Python 3.10+), its
+  pure-Python interface
 * pytest - for the tests
 * cmake (version 3.16+) - for the Debian package
 
@@ -46,8 +47,9 @@ depends on `python3-libcyberiadamlpp`; the plugin goes to
 `/usr/share/cyberiada-pro/plugins/hsm-maker/`, where `CyberiadaPro`
 finds it.
 
-With pip (a virtual environment, the user site, Windows, macOS) the binding
-comes from its own build or package; then
+With pip (a virtual environment, the user site, Windows, macOS) the maker
+needs no binary build: pip installs cyberiadaml-py with it (Python 3.10+),
+and the maker uses the binding only when it is installed; then
 
     pip install /path/to/cybersphere-hsm-maker
     hsm-maker --install-editor-plugin

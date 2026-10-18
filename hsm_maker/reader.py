@@ -24,7 +24,7 @@
 the element ids, names for the unnamed elements and notes for what the
 notation cannot show."""
 
-import CyberiadaML
+from .cyberiadaml import CyberiadaML
 
 from .builder import BINDING_ERRORS, PLATFORM_LANGUAGE
 from .notation import (Behaviour, Diagram, NotationError, Transition, Vertex,

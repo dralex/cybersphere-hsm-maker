@@ -26,7 +26,7 @@ what the notation does not show (docs/ARCHITECTURE.md, The update)."""
 
 import textwrap
 
-import CyberiadaML
+from .cyberiadaml import CyberiadaML
 
 from .builder import (BINDING_ERRORS, BuildError, GEOMETRY_UPDATE,
                       PLATFORM_LANGUAGE, PROPAGATION, actions_of, layout,

@@ -27,7 +27,7 @@ import os
 import sys
 import tempfile
 
-import CyberiadaML
+from .cyberiadaml import CyberiadaML
 
 from .notation import (Issue, STATE, INITIAL, FINAL, TERMINATE, CHOICE,
                        HISTORY, DEEP_HISTORY, ENTRY_POINT, EXIT_POINT,

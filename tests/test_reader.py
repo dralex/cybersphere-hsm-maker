@@ -24,7 +24,7 @@ import os
 
 import pytest
 
-import CyberiadaML
+from hsm_maker.cyberiadaml import CyberiadaML
 from conftest import GOOD, diagram
 from hsm_maker import builder as B
 from hsm_maker import notation as N

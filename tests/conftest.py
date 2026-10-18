@@ -33,6 +33,12 @@ TESTS = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(TESTS)
 sys.path.insert(0, ROOT)
 
+# HSM_MAKER_BACKEND=cml runs the tests on the pure-Python interface even
+# where the binding is installed
+if os.environ.get('HSM_MAKER_BACKEND') == 'cml':
+    from cyberiadaml_py import cml  # pylint: disable=wrong-import-position
+    sys.modules['CyberiadaML'] = cml
+
 # the package is imported from the tree, not from an installation
 from hsm_maker.client import Reply, RequestLimitError, Usage  # pylint: disable=wrong-import-position
 
@@ -49,6 +55,19 @@ def diagram(name):
 
 
 GOOD =os.path.join(TESTS, 'good')
+
+from hsm_maker.cyberiadaml import CyberiadaML  # pylint: disable=wrong-import-position,wrong-import-order
+PURE_PYTHON = CyberiadaML.__name__ == 'cyberiadaml_py.cml'
+
+
+def same_document(text, good):
+    """A written document equals a recorded one: the bytes of the binding,
+    which recorded them; the canonical dump of cyberiadaml-py for the
+    pure-Python interface, whose writer formats the text its own way."""
+    if not PURE_PYTHON:
+        return text == good
+    from cyberiadaml_py import core  # pylint: disable=import-outside-toplevel
+    return core.dump(core.read(text)) == core.dump(core.read(good))
 VALIDATOR = os.path.join(os.path.dirname(ROOT), 'cyberiadaml-compat-tests')
 
 

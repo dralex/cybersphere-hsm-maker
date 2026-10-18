@@ -25,7 +25,7 @@ import os
 
 import pytest
 
-import CyberiadaML
+from hsm_maker.cyberiadaml import CyberiadaML
 from conftest import ROOT, FakeClient, diagram, fenced
 from hsm_maker import cli
 from hsm_maker import maker as M

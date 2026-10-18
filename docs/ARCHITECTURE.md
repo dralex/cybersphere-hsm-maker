@@ -8,14 +8,17 @@ CyberiadaML-GraphML format (CGML, PNST 1044-2025) with the semantics of
 PNST 984-2024. A language model writes the structure of the diagram in a
 compact text notation; the maker parses and checks it, returns the
 mistakes to the model until the diagram is correct, builds the document
-with the `CyberiadaML` binding (`libcyberiadamlpp-py`) and lays it out.
+with the `CyberiadaML` module and lays it out.
 It changes an existing diagram the same way: the model sees the diagram in
 the notation and answers the changed one, the maker applies the difference
 to the same document and lays out only what is new.
 
 The maker is a library first and a command second. It depends on the
-`CyberiadaML` binding and on the Python 3 standard library only: no agent
-framework, no vendor SDK, no editor.
+`CyberiadaML` module and on the Python 3 standard library only: no agent
+framework, no vendor SDK, no editor. The module is the binding of
+`libcyberiadamlpp-py` when it is installed, else the pure-Python interface
+of `cyberiadaml-py` (`cyberiadaml_py.cml`, the same names and results,
+`libhtreegeom` ported): `hsm_maker/cyberiadaml.py` chooses it.
 
 ```
      cli.py              maker.py              notation.py
@@ -32,7 +35,7 @@ framework, no vendor SDK, no editor.
                         |         ^                 |
                 system, |         | reply,          | calls
                messages v         | usage           v
-                      +-------------+       CyberiadaML binding
+                      +-------------+       CyberiadaML module
                       |  client.py  |
                       +-------------+
                         |         ^
@@ -50,7 +53,7 @@ framework, no vendor SDK, no editor.
 | R4 | The model never writes identifiers or coordinates. | The notation, The geometry |
 | R5 | The instructions to the model exist in several languages, English and Russian at least. | The languages |
 | R6 | Be embedded by other programs (`cybersphere-agents`, the editors) and run as a command. | The interface |
-| R7 | Python 3.8+, the standard library and the binding only. | Code layout |
+| R7 | Python 3.8+, the standard library and the `CyberiadaML` module only. | Code layout |
 | R8 | Limit the requests and report the usage: requests, tokens. | The client |
 | R9 | Change an existing diagram by a description of the change; what is not changed keeps its identity, its place and the parts the notation does not show. | The update |
 | R10 | Run from `CyberiadaPro`: draw a new diagram, change the open one. | The editor plugin |
@@ -299,6 +302,7 @@ issues and the changes for the editor. The details are in `API.md`.
 | File | Content |
 |---|---|
 | `hsm_maker/__init__.py` | `make()`, the version, the public names |
+| `hsm_maker/cyberiadaml.py` | the `CyberiadaML` module: the binding, else `cyberiadaml_py.cml` |
 | `hsm_maker/notation.py` | the notation tree, `extract`, `parse`, `analyze`; no binding |
 | `hsm_maker/builder.py` | the tree to a `CyberiadaML.Document`, the layout, `encode`, `verify` |
 | `hsm_maker/client.py` | the protocols, the retries, the usage, the key |
@@ -384,7 +388,7 @@ where the editor looks for plugins.
 | Package | Contents | Needs |
 |---|---|---|
 | `python3-cybersphere-hsm-maker` (deb, `all`) | the package in `/usr/lib/python3/dist-packages`, `/usr/bin/hsm-maker`, the plugin in `/usr/share/cyberiada-pro/plugins/hsm-maker/`, the documents | `python3 (>= 3.8)`, `python3-libcyberiadamlpp (>= 1.0.8)`; enhances `cyberiada-pro` |
-| `cybersphere-hsm-maker` (wheel) | the package, `hsm-maker`, the plugin as data files under the install prefix | the `CyberiadaML` binding installed apart (not a pip package) |
+| `cybersphere-hsm-maker` (wheel) | the package, `hsm-maker`, the plugin as data files under the install prefix | `cyberiadaml-py` 1.8+ (a dependency on Python 3.10+), or the `CyberiadaML` binding installed apart |
 
 * The deb plugin keeps the logical interpreter `python3`: the system Python
   has the binding and the maker from their packages.
@@ -407,7 +411,11 @@ tests compare the documents built without geometry with the good files of
 `tests/good` and check the documents with geometry by the strict reading
 and by the validator of `cyberiadaml-compat-tests` when it is found beside
 the repository. A static test keeps the sources inside the Python 3.8
-syntax. A run with a real model is a manual step.
+syntax. The tests run on the module the maker finds; `HSM_MAKER_BACKEND=cml`
+runs them on `cyberiadaml_py.cml` beside an installed binding. The good
+files were written by the binding: the pure-Python writer formats the text
+its own way, so they are compared by the canonical dump of `cyberiadaml-py`
+there. A run with a real model is a manual step.
 
 The record of 2026-10-14, `deepseek-flash` over `chat-completions`, the
 default options:
@@ -450,8 +458,8 @@ transition without one, the ends of a route on a grown state).
 
 | Need | Existing tool |
 |---|---|
-| writing, reading and checking CGML | `libcyberiadamlpp-py` (`CyberiadaML`) |
-| the layout | `libhtreegeom` through the binding |
+| writing, reading and checking CGML | `libcyberiadamlpp-py` (`CyberiadaML`), or `cyberiadaml-py` (`cyberiadaml_py.cml`) |
+| the layout | `libhtreegeom` through the binding, or its port in `cyberiadaml-py` |
 | the validation of the documents in the tests | `cgmlval` of `cyberiadaml-compat-tests` |
 | showing a diagram as text | `hsmview.py` of `hsm-console-viewer` |
 | editing a diagram by hand | `CyberiadaPro` |

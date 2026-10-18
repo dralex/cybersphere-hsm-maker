@@ -24,8 +24,8 @@ import os
 
 import pytest
 
-import CyberiadaML
-from conftest import GOOD, diagram, validate
+from hsm_maker.cyberiadaml import CyberiadaML
+from conftest import GOOD, diagram, same_document, validate
 from hsm_maker import builder as B
 from hsm_maker import notation as N
 
@@ -163,7 +163,7 @@ def test_good_file():
         with open(path, 'w', encoding='utf-8') as good:
             good.write(text)
     with open(path, encoding='utf-8') as good:
-        assert text == good.read()
+        assert same_document(text, good.read())
     B.verify(text)
 
 

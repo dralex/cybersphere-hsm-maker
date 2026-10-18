@@ -29,7 +29,7 @@ import sys
 
 import pytest
 
-import CyberiadaML
+from hsm_maker.cyberiadaml import CyberiadaML
 from conftest import ROOT, chat_answer, diagram, fenced
 from hsm_maker import __version__, cli
 from hsm_maker import maker as M

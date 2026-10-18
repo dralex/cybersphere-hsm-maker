@@ -24,8 +24,8 @@ import os
 
 import pytest
 
-import CyberiadaML
-from conftest import GOOD, diagram, validate
+from hsm_maker.cyberiadaml import CyberiadaML
+from conftest import GOOD, diagram, same_document, validate
 from hsm_maker import builder as B
 from hsm_maker import notation as N
 
@@ -60,7 +60,7 @@ def test_good_files(name):
         with open(path, 'w', encoding='utf-8') as good:
             good.write(text)
     with open(path, encoding='utf-8') as good:
-        assert text == good.read()
+        assert same_document(text, good.read())
     B.verify(text)
 
 
@@ -148,7 +148,9 @@ def test_verify_reports_the_reason():
         B.verify(text.replace('>E/<', '>E-1/<'))
     issue = error.value.issues[0]
     assert issue.code == 'B02'
-    assert 'regexp' in issue.fields['message']
+    # the binding's C library gives the reason on stderr, cml in its error
+    assert any(reason in issue.fields['message']
+               for reason in ('regexp', "Bad action 'E-1/'"))
 
 
 def test_cyrillic_names_and_events():

@@ -20,7 +20,7 @@
 #
 #  -----------------------------------------------------------------------------
 
-import CyberiadaML
+from hsm_maker.cyberiadaml import CyberiadaML
 from conftest import diagram, validate
 from hsm_maker import builder as B
 from hsm_maker import maker as M

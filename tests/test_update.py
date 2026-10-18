@@ -22,7 +22,7 @@
 
 import json
 
-import CyberiadaML
+from hsm_maker.cyberiadaml import CyberiadaML
 from conftest import FakeClient, chat_answer, diagram, fenced
 import hsm_maker
 from hsm_maker import builder as B
