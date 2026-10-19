@@ -387,8 +387,8 @@ where the editor looks for plugins.
 
 | Package | Contents | Needs |
 |---|---|---|
-| `python3-cybersphere-hsm-maker` (deb, `all`) | the package in `/usr/lib/python3/dist-packages`, `/usr/bin/hsm-maker`, the plugin in `/usr/share/cyberiada-pro/plugins/hsm-maker/`, the documents | `python3 (>= 3.8)`, `python3-libcyberiadamlpp (>= 1.0.8)`; enhances `cyberiada-pro` |
-| `cybersphere-hsm-maker` (wheel) | the package, `hsm-maker`, the plugin as data files under the install prefix | `cyberiadaml-py` 1.8+ (a dependency on Python 3.10+), or the `CyberiadaML` binding installed apart |
+| `python3-cybersphere-hsm-maker` (deb, `all`) | the package in `/usr/lib/python3/dist-packages`, `/usr/bin/hsm-maker`, the plugin in `/usr/share/cyberiada-pro/plugins/hsm-maker/`, the documents | `python3 (>= 3.8)`, `python3-libcyberiadamlpp (>= 1.0.8)` or `python3-cyberiadaml (>= 1.8.0)`; enhances `cyberiada-pro` |
+| `cybersphere-hsm-maker` (wheel) | the package, `hsm-maker`, the plugin as data files under the install prefix | `cyberiadaml-py` 1.8+ (a dependency on Python 3.8.1+, on Windows from Python 3.10), or the `CyberiadaML` binding installed apart |
 
 * The deb plugin keeps the logical interpreter `python3`: the system Python
   has the binding and the maker from their packages.

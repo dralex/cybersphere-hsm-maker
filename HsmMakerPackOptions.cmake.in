@@ -17,7 +17,8 @@ Draws a state machine diagram from a description of a system and changes an
 existing diagram by a description of the change, with a language model of a
 chat-completions or messages server. Includes the plugin of CyberiadaPro, the
 Cyberiada state machine editor.")
-set(CPACK_DEBIAN_PACKAGE_DEPENDS "python3 (>= 3.8), python3-libcyberiadamlpp (>= 1.0.8)")
+# the binding first, else the pure-Python interface
+set(CPACK_DEBIAN_PACKAGE_DEPENDS "python3 (>= 3.8), python3-libcyberiadamlpp (>= 1.0.8) | python3-cyberiadaml (>= 1.8.0)")
 set(CPACK_DEBIAN_PACKAGE_ENHANCES "cyberiada-pro")
 
 # a per-release build tags the version (e.g. 0.1.0+ubuntu2404)
