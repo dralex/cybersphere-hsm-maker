@@ -1,16 +1,12 @@
 # cybersphere-hsm-maker project changelog
 
-## Version 0.1.1 (unreleased)
+## Version 0.1.0
 
-Changed:
+Added:
 - the pure-Python interface of cyberiadaml-py is a dependency from Python
   3.8.1 (was 3.10), on Windows from Python 3.10 (the older Windows Python
   runs the binding); the Debian package takes `python3-cyberiadaml` when
   the binding package is not installed.
-
-## Version 0.1.0
-
-Added:
 - the maker of CyberiadaML diagrams from a description: the name-based text
   notation the model writes, its checks and the rounds of repair, the
   layout; the `chat-completions` and `messages` protocols; the instructions
