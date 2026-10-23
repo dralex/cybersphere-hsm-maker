@@ -110,9 +110,16 @@ def test_remove_with_transitions_and_comment_links(tmp_path):
         .replace('    FLOOR [floor == target] -> DoorsOpen\n',
                  '    FLOOR [floor == target] -> Idle\n')
     new = new[:new.index('  state DoorsOpen')]
+    # the comment stays; its link to the removed state goes
+    assert '  comment _comment1 (on DoorsOpen)\n' in new
+    conversion = M.change(original, new, old=old)
+    assert [i.code for i in conversion.errors] == ['R05']
+    new = new.replace('  comment _comment1 (on DoorsOpen)\n',
+                      '  comment _comment1\n')
     conversion = M.change(original, new, old=old)
     assert conversion.ok, conversion.errors
-    assert sorted(codes(conversion)) == ['C02', 'C06', 'C07', 'C07', 'C07']
+    assert sorted(codes(conversion)) == ['C02', 'C06', 'C07', 'C07', 'C07',
+                                         'C12']
     result = CyberiadaML.Document()
     result.decode(conversion.graphml, strict=True)
     comments = result.get_state_machines()[0].find_elements_by_types(
@@ -138,7 +145,8 @@ def test_move_keeps_the_id_and_the_comment():
     x_id = x.get_id()
     original = document.encode()
     old = M.Original(original)
-    new = 'machine M\n  initial -> A\n  state A\n    initial -> Z\n' \
+    new = 'machine M\n  comment _comment1 (on X)\n    about x\n' \
+        '  initial -> A\n  state A\n    initial -> Z\n' \
         '    state Z\n    GO -> B\n  state B\n    initial -> Y\n    state Y\n' \
         '    state X (was A::X)\n'
     conversion = M.change(original, new, old=old)

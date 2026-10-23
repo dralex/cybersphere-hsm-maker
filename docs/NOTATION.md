@@ -350,7 +350,7 @@ are the English ones; every language of the maker has its own.
 | S16 | '{point}' is not a point of the machine '{machine}'; its points: {known} |
 | S17 | an entry point of a submachine leads into its machine: remove '-> ...' |
 | S18 | an exit point of a machine ends it: remove '-> ...' |
-| S19 | the fragment "{fragment}" is not in the {part} of '{subject}' |
+| S19 | the fragment "{fragment}" is not in the text of '{subject}' |
 | S20 | a transition has no name: link a fragment of its actions instead |
 | S21 | duplicate comment name '{name}' in the machine (first at line {first}) |
 | S22 | the comment '{name}' is linked to itself |

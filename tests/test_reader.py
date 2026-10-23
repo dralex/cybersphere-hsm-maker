@@ -93,10 +93,14 @@ def test_unnamed_notes_and_actions():
         [('LATER', N.DEFER)]
     assert (None, 'platform: ArduinoUno') in tree.notes
     notes = [text for vertex, text in tree.notes if vertex is machine]
-    assert notes == ['comment: remember the timer (on A)',
-                     'CGML_COMPONENT timer: type/ Timer']
+    assert notes == ['CGML_COMPONENT timer: type/ Timer']
+    comment = machine.comments[0]
+    assert (comment.name, comment.unnamed, comment.body) == \
+        ('_comment1', True, 'remember the timer')
+    assert [s.target for s in comment.subjects] == [a]
     text = N.render(tree)
     assert '# note: platform: ArduinoUno' in text
+    assert '  comment _comment1 (on A)\n    remember the timer\n' in text
     assert 'choice _choice1\n    [x] -> _final1\n    [else] -> A\n' in text
 
 

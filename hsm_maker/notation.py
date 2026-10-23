@@ -23,6 +23,9 @@
 """The text a model writes for the maker (docs/NOTATION.md): a line is an
 element, the indentation is the nesting, a transition names its target."""
 
+# the parser, the checks and the writer share their helpers in one module
+# pylint: disable=too-many-lines
+
 import difflib
 import re
 import textwrap
@@ -38,6 +41,12 @@ DEEP_HISTORY = 'deep history'
 ENTRY_POINT = 'entry point'
 EXIT_POINT = 'exit point'
 SUBMACHINE = 'submachine'
+COMMENT = 'comment'
+
+# the kinds of the comment links (PNST 1044, 6.7.1)
+SUBJECT_ELEMENT = 'element'
+SUBJECT_NAME = 'name'
+SUBJECT_BODY = 'body'
 
 ERROR = 'error'
 WARNING = 'warning'
@@ -82,6 +91,8 @@ HEADER_RE = re.compile(r'(name|description|language):(.*)\Z', re.S)
 BEHAVIOUR_RE = re.compile(r'(entry|exit)\s*/(.*)\Z', re.S)
 DO_RE = re.compile(r'do\s*/')
 DEFER_RE = re.compile(r'defer\b')
+COMMENT_RE = re.compile(r'comment(?=\s|\(|\Z)')
+ON_RE = re.compile(r'on(?:\s+|\Z)')
 FENCE_RE = re.compile(r'^[ \t]*```[^\n]*\n(.*?)(?:^[ \t]*```[ \t]*$|\Z)',
                       re.S | re.M)
 
@@ -132,6 +143,7 @@ class Vertex:
         self.was = None
         self.element_id = None
         self.unnamed = False
+        self.comments = []
         if parent is not None:
             parent.children.append(self)
 
@@ -196,6 +208,47 @@ class Transition:
         self.element_id = None
 
 
+class Comment:
+    """An informal comment: its title, its Markdown text and its links."""
+
+    def __init__(self, name, line, parent):
+        self.name = name
+        self.title = name
+        self.line = line
+        self.parent = parent
+        self.body = ''
+        self.subjects = []
+        self.was = None
+        self.element_id = None
+        self.unnamed = False
+        parent.comments.append(self)
+
+    @property
+    def machine(self):
+        return self.parent.machine
+
+    def __repr__(self):
+        return 'Comment({!r}, line {})'.format(self.name, self.line)
+
+
+class Subject:
+    """A link of a comment: a vertex or a comment (`ref`), or a transition
+    (`source_ref`, `event`, `guard`, `propagation`, `target_ref`); the
+    whole element or a fragment of its name or of its body."""
+
+    def __init__(self, kind=SUBJECT_ELEMENT, fragment=''):
+        self.kind = kind
+        self.fragment = fragment
+        self.ref = None
+        self.source_ref = None
+        self.event = ''
+        self.guard = None
+        self.propagation = ''
+        self.target_ref = None
+        self.target = None
+        self.element_id = None
+
+
 class Diagram:
     """The tree of one document."""
 
@@ -209,6 +262,10 @@ class Diagram:
     def walk(self):
         for machine in self.machines:
             yield from machine.walk()
+
+    def comments(self):
+        for vertex in self.walk():
+            yield from vertex.comments
 
 
 def extract(answer):
@@ -225,6 +282,7 @@ class _Line:
         self.indent = indent
         self.first = text
         self.rest = []
+        self.comment = _comment_line(text)
 
     @property
     def text(self):
@@ -240,13 +298,25 @@ class _Fail(Exception):
         self.fields = fields
 
 
+def _comment_line(text):
+    """Whether a line declares a comment, not a transition on the event
+    `comment`."""
+    match = COMMENT_RE.match(text)
+    return match is not None and \
+        not text[match.end():].lstrip().startswith(('/', '->', '['))
+
+
 def _lines(text, issues):
+    """The logical lines; the text of a comment keeps its `#` lines and
+    its inner blank lines."""
     lines = []
+    blanks = 0
     text = text.lstrip('﻿').replace('\r\n', '\n').replace('\r', '\n')
     for number, raw in enumerate(text.split('\n'), 1):
         raw = raw.rstrip()
         body = raw.lstrip(' \t')
-        if not body or body.startswith('#'):
+        if not body:
+            blanks += 1
             continue
         margin = raw[:len(raw) - len(body)]
         if '\t' in margin:
@@ -254,11 +324,17 @@ def _lines(text, issues):
             continue
         indent = len(margin)
         last = lines[-1] if lines else None
+        commented = last is not None and last.comment and indent > last.indent
+        if body.startswith('#') and not commented:
+            continue
         if last is not None and indent > last.indent and \
            not BLOCK_RE.match(last.first):
+            if commented and last.rest:
+                last.rest.extend([''] * blanks)
             last.rest.append(raw)
         else:
             lines.append(_Line(number, indent, body))
+        blanks = 0
     return lines
 
 
@@ -517,6 +593,125 @@ def _behaviour(parent, line, match):
     parent.behaviours.append(Behaviour(match.group(1), action, line.number))
 
 
+def _quoted_end(text, i):
+    """The index after the quoted text starting at text[i] == '"'; the
+    backslash escapes the quote and itself."""
+    k = i + 1
+    while k < len(text):
+        if text[k] == '\\' and k + 1 < len(text):
+            k += 2
+            continue
+        if text[k] == '"':
+            return k + 1
+        k += 1
+    raise _Fail('N35', text=text[i:])
+
+
+def _unescape(text):
+    return re.sub(r'\\(.)', r'\1', text)
+
+
+def _escape(text):
+    return text.replace('\\', '\\\\').replace('"', '\\"')
+
+
+def _split_subjects(text):
+    """The subjects of `on A, B`: the commas outside the quotes and the
+    guard brackets."""
+    items, start, depth, i = [], 0, 0, 0
+    while i < len(text):
+        char = text[i]
+        if char == '"':
+            i = _quoted_end(text, i)
+            continue
+        if char == '[':
+            depth += 1
+        elif char == ']':
+            depth = max(depth - 1, 0)
+        elif char == ',' and depth == 0:
+            items.append(text[start:i].strip())
+            start = i + 1
+        i += 1
+    items.append(text[start:].strip())
+    if any(not item for item in items):
+        raise _Fail('N35', text=text)
+    return items
+
+
+def _tokens(text):
+    """The words and the quoted texts of a subject: (start, end, quoted)."""
+    tokens, i = [], 0
+    while i < len(text):
+        if text[i].isspace():
+            i += 1
+        elif text[i] == '"':
+            end = _quoted_end(text, i)
+            tokens.append((i, end, True))
+            i = end
+        else:
+            start = i
+            while i < len(text) and not text[i].isspace() and text[i] != '"':
+                i += 1
+            tokens.append((start, i, False))
+    return tokens
+
+
+def _subject(text):
+    """A comment subject: a reference and an optional fragment."""
+    subject = Subject()
+    tokens = _tokens(text)
+    end = len(text)
+    if len(tokens) > 1 and tokens[-1][2]:
+        start, stop, _ = tokens[-1]
+        subject.kind, subject.fragment = SUBJECT_BODY, \
+            _unescape(text[start + 1:stop - 1])
+        end = start
+        if len(tokens) > 2 and text[tokens[-2][0]:tokens[-2][1]] == 'name':
+            subject.kind, end = SUBJECT_NAME, tokens[-2][0]
+        if not subject.fragment:
+            raise _Fail('N35', text=text)
+    ref = text[:end].strip()
+    source = TARGET_RE.match(ref)
+    if source is None:
+        raise _Fail('N35', text=text)
+    if source.end() == len(ref):
+        subject.ref = ref
+        return subject
+    event, guard, flag, target, action = _split(ref[source.end():])
+    if target is None or action is not None:
+        raise _Fail('N35', text=text)
+    _event(event)
+    subject.source_ref = source.group(0)
+    subject.event, subject.guard, subject.propagation = \
+        event, guard, flag or ''
+    subject.target_ref = target
+    return subject
+
+
+def _comment(parent, line):
+    """comment [NAME] [(was OLD)] [(on SUBJECT, ...)] and its text below."""
+    if parent.kind == CHOICE:
+        raise _Fail('N12')
+    if parent.kind == SUBMACHINE:
+        raise _Fail('N33')
+    head = line.first[COMMENT_RE.match(line.first).end():].strip()
+    name = was = None
+    tail = head
+    if head and not head.startswith('('):
+        name, was, tail = _declared(head, COMMENT)
+    subjects = []
+    if tail:
+        on = ON_RE.match(tail[1:].lstrip()) if tail.startswith('(') else None
+        if on is None or not tail.endswith(')'):
+            raise _Fail('N35', text=tail)
+        subjects = [_subject(item) for item in
+                    _split_subjects(tail[1:-1].lstrip()[on.end():])]
+    comment = Comment(name, line.number, parent)
+    comment.was = was
+    comment.subjects = subjects
+    comment.body = textwrap.dedent('\n'.join(line.rest))
+
+
 def _statement(diagram, stack, line, issues):
     text = line.text
     while stack and stack[-1][0] >= line.indent:
@@ -531,7 +726,9 @@ def _statement(diagram, stack, line, issues):
             return
         if keyword != MACHINE:
             raise _Fail('N02')
-    if kind:
+    if line.comment:
+        _comment(parent, line)
+    elif kind:
         _declaration(diagram, stack, line, parent,
                      ' '.join(kind.group(1).split()), kind.end())
     elif keyword == INITIAL or keyword.startswith(INITIAL + '->'):
@@ -581,12 +778,17 @@ def _known(name, machine):
 def _find(source, ref):
     """The vertices a reference from the source names: the nearest level
     first, then the whole machine; [] when none."""
-    machine = source.machine
+    return _find_at(source.parent, ref)
+
+
+def _find_at(level, ref):
+    """The vertices a reference names from the children of the level
+    outwards, then in the whole machine; [] when none."""
+    machine = level.machine
     parts = [p[1:-1] if p.startswith('"') else p for p in ref.split(PATH)]
     named = [v for v in machine.walk() if v.kind in NAMED]
     if len(parts) > 1:
         return [v for v in named if v.path == PATH.join(parts)]
-    level = source.parent
     while level is not None:
         near = [c for c in level.children
                 if c.kind in NAMED and c.name == parts[0]]
@@ -711,6 +913,133 @@ def _transitions(machine, issues):
             issues.append(Issue('S09', vertex.line, name=vertex.path))
 
 
+def _subject_text(subject, comment):
+    """The text of a subject as the notation writes it."""
+    target = subject.target
+    if target is None:
+        if subject.source_ref is None:
+            ref = subject.ref
+        else:
+            parts = [subject.source_ref]
+            if subject.event:
+                parts.append(subject.event)
+            if subject.guard is not None:
+                parts.append('[' + subject.guard + ']')
+            if subject.propagation:
+                parts.append(subject.propagation)
+            ref = ' '.join(parts + ['->', subject.target_ref])
+    elif isinstance(target, Comment):
+        ref = _written_name(target.name)
+    elif isinstance(target, Transition):
+        ref = _vertex_ref(comment.parent, target.source) + ' ' + \
+            _transition_head(target)
+    else:
+        ref = _vertex_ref(comment.parent, target)
+    if subject.kind == SUBJECT_NAME:
+        return ref + ' name "' + _escape(subject.fragment) + '"'
+    if subject.kind == SUBJECT_BODY:
+        return ref + ' "' + _escape(subject.fragment) + '"'
+    return ref
+
+
+def _subject_target(comment, subject, comments, issues):
+    """The vertex, the comment or the transition a subject names."""
+    text = _subject_text(subject, comment)
+    machine = comment.machine
+    if subject.source_ref is None:
+        found = _find_at(comment.parent, subject.ref)
+        if len(found) == 1:
+            return found[0]
+        if found:
+            issues.append(Issue('R02', comment.line, target=subject.ref,
+                                candidates=', '.join(v.path for v in found)))
+            return None
+        named = comments.get(_unquoted_name(subject.ref))
+        if named is not None:
+            return named
+        issues.append(Issue('R05', comment.line, subject=text,
+                            known=_known(subject.ref, machine)))
+        return None
+    sources = _find_at(comment.parent, subject.source_ref)
+    targets = _find(sources[0], subject.target_ref) if len(sources) == 1 \
+        else []
+    if len(targets) != 1:
+        issues.append(Issue('R05', comment.line, subject=text,
+                            known=_known(subject.source_ref, machine)))
+        return None
+    guard = ' '.join(subject.guard.split()) if subject.guard is not None \
+        else None
+    found = [t for t in sources[0].transitions if t.target is targets[0] and
+             (not subject.event or t.event == subject.event) and
+             (guard is None or ' '.join(t.guard.split()) == guard) and
+             (not subject.propagation or
+              t.propagation == subject.propagation)]
+    if len(found) == 1:
+        return found[0]
+    if found:
+        issues.append(Issue('R06', comment.line, subject=text,
+                            count=len(found)))
+    else:
+        issues.append(Issue('R05', comment.line, subject=text,
+                            known=_known(subject.source_ref, machine)))
+    return None
+
+
+def _unquoted_name(ref):
+    return ref[1:-1] if ref.startswith('"') and ref.endswith('"') else ref
+
+
+def _subject_texts(target, kind):
+    """The text a fragment of a subject is looked for in."""
+    if kind == SUBJECT_NAME:
+        return target.title if isinstance(target, Comment) \
+            else target.name or ''
+    if isinstance(target, Comment):
+        return target.body
+    if isinstance(target, Transition):
+        parts = [target.event, target.guard, target.action]
+    else:
+        parts = [b.action for b in target.behaviours]
+        for transition in target.internals:
+            parts.extend((transition.event, transition.guard,
+                          transition.action))
+    return '\n'.join(p for p in parts if p)
+
+
+def _comments(machine, issues):
+    """The names of the comments of a machine and their subjects."""
+    comments = {}
+    for vertex in machine.walk():
+        for comment in vertex.comments:
+            if comment.name is None:
+                continue
+            if comment.name in comments:
+                issues.append(Issue('S21', comment.line, name=comment.name,
+                                    first=comments[comment.name].line))
+            else:
+                comments[comment.name] = comment
+    for vertex in machine.walk():
+        for comment in vertex.comments:
+            for subject in comment.subjects:
+                target = _subject_target(comment, subject, comments, issues)
+                subject.target = target
+                if target is None:
+                    continue
+                if target is comment:
+                    issues.append(Issue('S22', comment.line,
+                                        name=comment.name or ''))
+                elif subject.kind == SUBJECT_NAME and \
+                        isinstance(target, Transition):
+                    issues.append(Issue('S20', comment.line))
+                elif subject.kind != SUBJECT_ELEMENT and \
+                        subject.fragment not in _subject_texts(target,
+                                                               subject.kind):
+                    issues.append(Issue('S19', comment.line,
+                                        fragment=subject.fragment,
+                                        subject=_subject_text(subject,
+                                                              comment)))
+
+
 def _unreachable(machine):
     seen = set()
     todo = [t.target for v in machine.children if v.kind == INITIAL
@@ -733,11 +1062,11 @@ def _unreachable(machine):
 
 
 def _new_only(diagram, issues):
-    for vertex in diagram.walk():
-        if vertex.was is not None:
-            issues.append(Issue('U01', vertex.line, old=vertex.was))
-        if vertex.name and vertex.name.startswith(UNNAMED):
-            issues.append(Issue('U02', vertex.line, name=vertex.name))
+    for item in list(diagram.walk()) + list(diagram.comments()):
+        if item.was is not None:
+            issues.append(Issue('U01', item.line, old=item.was))
+        if item.name and item.name.startswith(UNNAMED):
+            issues.append(Issue('U02', item.line, name=item.name))
 
 
 def analyze(diagram, changing=False):
@@ -759,6 +1088,7 @@ def analyze(diagram, changing=False):
         for vertex in machine.walk():
             _level(vertex, issues)
         _transitions(machine, issues)
+        _comments(machine, issues)
     for vertex in diagram.walk():
         if vertex.kind == SUBMACHINE:
             _submachine(vertex, machines, issues)
@@ -795,7 +1125,8 @@ def _with_action(head, action, pad, lines):
         lines.append(pad + CONTINUATION + rest if rest else '')
 
 
-def _transition_text(transition, pad, lines, prefix=''):
+def _transition_head(transition, prefix=''):
+    """The transition without its action: EVENT [GUARD] FLAG -> TARGET."""
     parts = [prefix] if prefix else []
     if transition.event:
         parts.append(transition.event)
@@ -803,10 +1134,37 @@ def _transition_text(transition, pad, lines, prefix=''):
         parts.append('[' + transition.guard + ']')
     if transition.propagation in FLAGS:
         parts.append(transition.propagation)
-    internal = transition.target is None and transition.target_ref is None
-    if not internal:
+    if transition.target is not None or transition.target_ref is not None:
         parts.append('-> ' + _reference(transition))
-    head = ' '.join(parts)
+    return ' '.join(parts)
+
+
+def _vertex_ref(level, vertex):
+    """The shortest text that names the vertex from the level."""
+    name = _written_name(vertex.name)
+    found = _find_at(level, name)
+    if len(found) == 1 and found[0] is vertex:
+        return name
+    return PATH.join(_written_name(n) for n in vertex.path.split(PATH))
+
+
+def _comment_text(comment, pad, lines):
+    head = COMMENT
+    if comment.name:
+        head += ' ' + _written_name(comment.name)
+    if comment.was:
+        head += ' (was ' + comment.was + ')'
+    if comment.subjects:
+        head += ' (on ' + ', '.join(_subject_text(s, comment)
+                                    for s in comment.subjects) + ')'
+    lines.append(pad + head)
+    for text in comment.body.split('\n') if comment.body else []:
+        lines.append(pad + INDENT + text if text else '')
+
+
+def _transition_text(transition, pad, lines, prefix=''):
+    internal = transition.target is None and transition.target_ref is None
+    head = _transition_head(transition, prefix)
     if transition.propagation == DEFER:
         lines.append(pad + head + ' / ' + DEFER)
     elif transition.action or internal:
@@ -842,6 +1200,8 @@ def _render(vertex, depth, notes, lines):
         _with_action(behaviour.kind + '/', behaviour.action, inner, lines)
     for transition in vertex.internals:
         _transition_text(transition, inner, lines)
+    for comment in vertex.comments:
+        _comment_text(comment, inner, lines)
     for child in vertex.children:
         _render(child, depth + 1, notes, lines)
     for transition in vertex.transitions:

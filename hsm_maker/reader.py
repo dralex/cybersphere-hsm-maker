@@ -21,17 +21,18 @@
 #  -----------------------------------------------------------------------------
 
 """A diagram to be changed: the document read into the notation tree with
-the element ids, names for the unnamed elements and notes for what the
-notation cannot show."""
+the element ids, the comments, names for the unnamed elements and notes for
+what the notation cannot show."""
 
 from .cyberiadaml import CyberiadaML
 
 from .builder import BINDING_ERRORS, PLATFORM_LANGUAGE
-from .notation import (Behaviour, Diagram, NotationError, Transition, Vertex,
-                       MACHINE, STATE, INITIAL, FINAL, TERMINATE, CHOICE,
-                       HISTORY, DEEP_HISTORY, ENTRY_POINT, EXIT_POINT,
-                       SUBMACHINE, TAILED, PROPAGATE, BLOCK, DEFER, UNNAMED,
-                       parse, render)
+from .notation import (Behaviour, Comment, Diagram, NotationError, Subject,
+                       Transition, Vertex, MACHINE, STATE, INITIAL, FINAL,
+                       TERMINATE, CHOICE, HISTORY, DEEP_HISTORY, ENTRY_POINT,
+                       EXIT_POINT, SUBMACHINE, COMMENT, TAILED, PROPAGATE,
+                       BLOCK, DEFER, UNNAMED, PATH, SUBJECT_ELEMENT,
+                       SUBJECT_NAME, SUBJECT_BODY, parse, render)
 
 KINDS = {
     CyberiadaML.elementSimpleState: STATE,
@@ -57,7 +58,10 @@ PROPAGATIONS = {
 SYNTHETIC = {MACHINE: 'machine', STATE: 'state', FINAL: 'final',
              CHOICE: 'choice', TERMINATE: 'terminate', HISTORY: 'history',
              DEEP_HISTORY: 'deep', ENTRY_POINT: 'entry', EXIT_POINT: 'exit',
-             SUBMACHINE: 'submachine'}
+             SUBMACHINE: 'submachine', COMMENT: 'comment'}
+SUBJECT_KINDS = {CyberiadaML.commentSubjectElement: SUBJECT_ELEMENT,
+                 CyberiadaML.commentSubjectName: SUBJECT_NAME,
+                 CyberiadaML.commentSubjectData: SUBJECT_BODY}
 META_NAME = 'CGML_META'
 META_NOTES = ('platform', 'platformVersion', 'target', 'markupLanguage',
               'author', 'version')
@@ -104,11 +108,31 @@ def _note(comment):
     return text
 
 
+def _writable(title):
+    """Whether the notation can write a comment title as its name."""
+    return bool(title) and title == title.strip() and '"' not in title and \
+        '\n' not in title and PATH not in title and \
+        not title.startswith(UNNAMED)
+
+
+def _hidden(target, subject):
+    """The links the notation cannot write: to an initial or its
+    transition, a name fragment of a transition, an empty fragment."""
+    if isinstance(target, Vertex) and target.kind == INITIAL:
+        return True
+    if isinstance(target, Transition) and \
+       (target.source.kind == INITIAL or subject.kind == SUBJECT_NAME):
+        return True
+    return subject.kind != SUBJECT_ELEMENT and not subject.fragment
+
+
 class _Reader:
     def __init__(self, document):
         self.document = document
         self.diagram = Diagram()
         self.vertices = {}
+        self.edges = {}
+        self.comments = {}
         self.taken = set()
 
     def name(self, kind, given):
@@ -147,7 +171,11 @@ class _Reader:
             if kind == CyberiadaML.elementTransition:
                 continue
             if kind in COMMENTS:
-                if element.get_name() != META_NAME:
+                if element.get_name() == META_NAME:
+                    continue
+                if element.is_human_readable():
+                    self.comment(element, collection, parent)
+                else:
                     self.diagram.notes.append((parent, _note(element)))
                 continue
             if kind not in KINDS:
@@ -169,6 +197,52 @@ class _Reader:
             if kind in (STATE, SUBMACHINE) and element.has_children():
                 self.children(element, vertex)
 
+    def comment(self, element, collection, parent):
+        """An informal comment; a submachine holds none in the notation, its
+        level shows it."""
+        holder = parent.parent if parent.kind == SUBMACHINE else parent
+        comment = Comment(None, 0, holder)
+        comment.element_id = element.get_id()
+        comment.title = element.get_name() or None
+        comment.body = (element.get_body() or '').replace('\r\n', '\n') \
+            .replace('\r', '\n')
+        comment.parent_element_id = collection.get_id()
+        self.comments[comment.element_id] = (comment, element)
+
+    def subjects(self):
+        """The links of the comments to the vertices, the transitions and
+        the comments of the tree."""
+        for comment, element in self.comments.values():
+            for link in element.get_subjects():
+                linked = link.get_element()
+                if linked is None:
+                    continue
+                key = linked.get_id()
+                target = self.vertices.get(key) or self.edges.get(key)
+                if target is None and key in self.comments:
+                    target = self.comments[key][0]
+                subject = Subject(SUBJECT_KINDS.get(link.get_type(),
+                                                    SUBJECT_ELEMENT),
+                                  link.get_fragment() or '')
+                if target is None or _hidden(target, subject):
+                    continue
+                subject.target = target
+                subject.element_id = key
+                comment.subjects.append(subject)
+
+    def comment_names(self, machine):
+        """A title the notation can write and unique in the machine is the
+        name of its comment, else the comment gets a `_commentN` name."""
+        comments = [c for v in machine.walk() for c in v.comments]
+        titles = [c.title for c in comments]
+        for comment in comments:
+            if _writable(comment.title) and titles.count(comment.title) == 1:
+                comment.name = comment.title
+                self.taken.add(comment.title)
+        for comment in comments:
+            if comment.name is None:
+                comment.name, comment.unnamed = self.name(COMMENT, None)
+
     def transitions(self, machine):
         for element in machine.get_transitions():
             source = self.vertices.get(element.get_source_element_id())
@@ -187,6 +261,7 @@ class _Reader:
             transition.target = target
             transition.element_id = element.get_id()
             source.transitions.append(transition)
+            self.edges[transition.element_id] = transition
 
     def read(self):
         diagram = self.diagram
@@ -211,6 +286,9 @@ class _Reader:
             self.children(machine, vertex)
         for machine in machines:
             self.transitions(machine)
+        self.subjects()
+        for vertex in diagram.machines:
+            self.comment_names(vertex)
         for vertex in diagram.walk():
             if vertex.kind == SUBMACHINE:
                 if vertex.reference not in by_id:

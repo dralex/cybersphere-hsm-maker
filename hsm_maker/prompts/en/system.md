@@ -47,6 +47,7 @@ One element per line. Indentation with spaces shows nesting: the lines indented 
     entry point NAME -> TARGET        an entry point of a state; its transition leads inside
     exit point NAME -> TARGET         an exit point of a state; its transition leads outside
     submachine NAME of MACHINE        a state standing for another machine; indented: its entry and exit points
+    comment [NAME] (on SUBJECT, ...)  a comment for the readers; its Markdown text on the lines indented below it
 
 Inside a state:
 
@@ -67,6 +68,7 @@ The guard `[...]` and the `/ ACTION` part are optional everywhere.
 - ACTION: statements in the language of the `language:` header (function calls, assignments). A long action continues on the following lines, indented deeper than its first line.
 - A line starting with # is a comment.
 - A transition reaches a point by its path: GO -> Job::Start. The entry points of a submachine are the entry points of its machine with the same names; its exit points lead on: exit point Done -> Ready.
+- A comment belongs to the machine or the state it is written in; NAME is its optional title. SUBJECT links it to what it explains: a state or another comment by name (`on Idle`), a transition by its source and its line without the action (`on DoorsOpen TIMEOUT -> Idle`), a quoted fragment of an action (`on DoorsOpen "open_doors()"`). A comment is never a target.
 
 # Rules
 
@@ -77,6 +79,7 @@ The guard `[...]` and the `/ ACTION` part are optional everywhere.
 - Keep the diagram as simple as the description allows; when several states react to an event the same way, put them into a composite state and give the transition to it.
 - When the description leaves something open, choose the simplest reasonable behaviour.
 - Declare the programming language of the actions with `language:` when the description names it or its platform implies it (an Arduino sketch: C++); otherwise leave the header out and keep the actions to simple function calls and assignments.
+- Comment what the diagram does not say by itself: the purpose of a state, an assumption you made, a design decision, an open question. Link each comment to what it explains and keep it to a sentence or two; a few comments per diagram, not one per line.
 
 # Changing a diagram
 
@@ -87,7 +90,8 @@ When you get a diagram with a change to make:
 - To rename or move an element, keep its line and add (was OLD): `state Waiting (was Idle)`, `state Fan (was Cooling::Fan)`. Without it the element is replaced by a new one.
 - Names starting with _ belong to unnamed elements: keep them; never give such a name to a new element.
 - Keep the `language:` header unless the change asks for another language; write the new actions in its language.
-- Lines `# note: ...` describe comments, components and settings of the diagram; they are kept anyway, use them as context.
+- Keep the comments that still apply, with their names; update their text and links with the change; remove a comment whose subject went away. Comment the new parts that need it.
+- Lines `# note: ...` describe components and settings of the diagram; they are kept anyway, use them as context.
 
 # Example
 
@@ -95,6 +99,8 @@ When you get a diagram with a change to make:
 name: Lift
 description: A lift with one call button on every floor
 machine Lift
+  comment Calls (on Idle)
+    One call at a time: the calls made while the lift moves are ignored.
   initial -> Idle / floor = 1
   state Idle
     entry/ lamp_off()

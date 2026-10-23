@@ -31,7 +31,8 @@ from .cyberiadaml import CyberiadaML
 
 from .notation import (Issue, STATE, INITIAL, FINAL, TERMINATE, CHOICE,
                        HISTORY, DEEP_HISTORY, ENTRY_POINT, EXIT_POINT,
-                       SUBMACHINE, PROPAGATE, BLOCK, DEFER)
+                       SUBMACHINE, PROPAGATE, BLOCK, DEFER, SUBJECT_NAME,
+                       SUBJECT_BODY)
 
 GEOMETRY_FULL = 'full'
 GEOMETRY_NONE = 'none'
@@ -40,6 +41,8 @@ GEOMETRIES = (GEOMETRY_FULL, GEOMETRY_NONE)
 CHANGE_GEOMETRIES = (GEOMETRY_UPDATE, GEOMETRY_FULL, GEOMETRY_NONE)
 # the meta key of the code language
 PLATFORM_LANGUAGE = 'platformLanguage'
+# the markup of the comments the maker writes (PNST 1044, 9.3)
+MARKDOWN = 'markdown'
 
 # the classes are registered apart and share no base but Exception
 BINDING_ERRORS = tuple(getattr(CyberiadaML, name) for name in (
@@ -66,9 +69,9 @@ class BuildError(Exception):
         self.issues = issues
 
 
-def _call(line, method, *args):
+def _call(line, method, *args, **options):
     try:
-        return method(*args)
+        return method(*args, **options)
     except BINDING_ERRORS as error:
         raise BuildError([Issue('B01', line, message=str(error))]) from error
 
@@ -140,6 +143,36 @@ def new_transition(document, machine, transition, source, target):
                  action_of(transition))
 
 
+def container(vertex):
+    """The vertex that holds the comments written in a vertex: a state
+    without child vertices passes them to its level, so a comment does not
+    make it composite."""
+    while vertex.kind == STATE and not vertex.children:
+        vertex = vertex.parent
+    return vertex
+
+
+def new_comment(document, comment, parent):
+    """Create a comment in the parent element (positional arguments: the
+    keywords of the names are not read by every module)."""
+    if comment.name:
+        return _call(comment.line, document.new_comment, parent, comment.name,
+                     comment.body, markup=MARKDOWN)
+    return _call(comment.line, document.new_comment, parent, comment.body,
+                 markup=MARKDOWN)
+
+
+def add_subject(document, comment, subject, element):
+    """Link the comment element to the element of a subject."""
+    if subject.kind == SUBJECT_NAME:
+        return _call(None, document.add_comment_to_element_name, comment,
+                     element, subject.fragment)
+    if subject.kind == SUBJECT_BODY:
+        return _call(None, document.add_comment_to_element_body, comment,
+                     element, subject.fragment)
+    return _call(None, document.add_comment_to_element, comment, element)
+
+
 def _drawn(document):
     for machine in document.get_state_machines():
         if machine.has_geometry():
@@ -199,9 +232,16 @@ def build(diagram, geometry=GEOMETRY_FULL):
     for machine in diagram.machines:
         for vertex in machine.walk():
             for transition in vertex.transitions:
-                new_transition(document, elements[id(machine)], transition,
-                               elements[id(vertex)],
-                               elements.get(id(transition.target)))
+                elements[id(transition)] = new_transition(
+                    document, elements[id(machine)], transition,
+                    elements[id(vertex)], elements.get(id(transition.target)))
+    for comment in diagram.comments():
+        elements[id(comment)] = new_comment(
+            document, comment, elements[id(container(comment.parent))])
+    for comment in diagram.comments():
+        for subject in comment.subjects:
+            add_subject(document, elements[id(comment)], subject,
+                        elements[id(subject.target)])
     layout(document, geometry)
     return document
 

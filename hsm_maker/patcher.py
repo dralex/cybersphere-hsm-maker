@@ -29,16 +29,22 @@ import textwrap
 from .cyberiadaml import CyberiadaML
 
 from .builder import (BINDING_ERRORS, BuildError, GEOMETRY_UPDATE,
-                      PLATFORM_LANGUAGE, PROPAGATION, actions_of, layout,
-                      new_element, new_transition)
-from .notation import (Issue, INITIAL, MACHINE, STATE, PATH, UNNAMED,
-                       language_spelling)
+                      PLATFORM_LANGUAGE, PROPAGATION, actions_of, add_subject,
+                      container, layout, new_comment, new_element,
+                      new_transition)
+from .notation import (Comment, Issue, Subject, Transition, INITIAL, MACHINE,
+                       STATE, PATH, UNNAMED, SUBJECT_ELEMENT, SUBJECT_NAME,
+                       SUBJECT_BODY, language_spelling)
 from .reader import decode
 
 COMMENT_TYPES = [CyberiadaML.elementComment, CyberiadaML.elementFormalComment]
 # the text estimates of libcyberiadaml: a 16 px monospace font
 CHAR_WIDTH, LINE_HEIGHT, TEXT_MARGIN = 10.0, 20.0, 8.0
 ACTION_HEAD, GUARD_EXTRA = 6, 3     # "entry/", " [" and "]"
+SUBJECT_KINDS = {CyberiadaML.commentSubjectElement: SUBJECT_ELEMENT,
+                 CyberiadaML.commentSubjectName: SUBJECT_NAME,
+                 CyberiadaML.commentSubjectData: SUBJECT_BODY}
+LABEL_LIMIT = 40
 
 
 class Change:
@@ -107,6 +113,34 @@ def text_size(vertex):
             lines * LINE_HEIGHT + 2 * TEXT_MARGIN)
 
 
+def comment_body(text):
+    """A comment text as the notation reads it back: dedented, no trailing
+    spaces, no blank lines around it."""
+    lines = [line.rstrip() for line in
+             (text or '').replace('\r\n', '\n').split('\n')]
+    return textwrap.dedent('\n'.join(lines)).strip('\n')
+
+
+def comment_size(title, body):
+    """The estimated text block of a comment: its title over its text."""
+    lines = body.split('\n') if body else []
+    if title:
+        lines.append(title)
+    chars = max([len(line) for line in lines] + [0])
+    return (chars * CHAR_WIDTH + 2 * TEXT_MARGIN,
+            len(lines) * LINE_HEIGHT + 2 * TEXT_MARGIN)
+
+
+def _comment_label(comment):
+    """The name of a comment in the change list: its title, else the start
+    of its text."""
+    if comment.name and not comment.unnamed:
+        return comment.name
+    text = ' '.join(comment_body(comment.body).split())
+    return text if len(text) <= LABEL_LIMIT else \
+        text[:LABEL_LIMIT - 3] + '...'
+
+
 def _label(transition):
     text = '{} -> {}'.format(transition.source.name or transition.source.kind,
                              transition.target.name or transition.target.kind)
@@ -125,6 +159,8 @@ class _Patch:
         self.changes = []
         self.issues = []
         self.texts = {}      # old id -> (new, old): the texts changed
+        self.transition_ids = {}   # id(new transition) -> element id
+        self.notes = []      # (new, old) comments whose texts changed
 
     # the identity
 
@@ -215,12 +251,50 @@ class _Patch:
                     if vertex is not machine:
                         self.match_vertex(vertex, old_machine, index,
                                           names if second else None)
-        for vertex in self.new.walk():
-            old = self.match.get(id(vertex))
-            if vertex.name and vertex.name.startswith(UNNAMED) and \
+        for machine in self.new.machines:
+            self.match_comments(machine)
+        self.unnamed_names()
+
+    def unnamed_names(self):
+        """A `_` name refers to an unnamed element of the old diagram."""
+        for item in list(self.new.walk()) + list(self.new.comments()):
+            old = self.match.get(id(item))
+            if item.name and item.name.startswith(UNNAMED) and \
                (old is None or not old.unnamed):
-                self.issues.append(Issue('U02', vertex.line,
-                                         name=vertex.name))
+                self.issues.append(Issue('U02', item.line, name=item.name))
+
+    def match_comments(self, machine):
+        """A comment by its name or (was OLD) in its machine, else by its
+        unchanged text."""
+        old_machine = self.match.get(id(machine))
+        olds = [c for v in old_machine.walk() for c in v.comments] \
+            if old_machine is not None else []
+        names = {c.name: c for c in olds}
+        news = [c for v in machine.walk() for c in v.comments]
+        for comment in news:
+            key = comment.was if comment.was is not None else comment.name
+            if key is None:
+                continue
+            old = names.get(_unquoted(key))
+            if old is None:
+                if comment.was is not None:
+                    self.issues.append(Issue('U03', comment.line,
+                                             old=comment.was))
+            elif id(old) in self.claimed:
+                if comment.was is not None:
+                    self.issues.append(Issue('U04', comment.line,
+                                             old=comment.was,
+                                             first=self.claimed[id(old)].line))
+            else:
+                self._bind(comment, old)
+        for comment in news:
+            if id(comment) in self.match:
+                continue
+            for old in olds:
+                if id(old) not in self.claimed and \
+                   comment_body(old.body) == comment_body(comment.body):
+                    self._bind(comment, old)
+                    break
 
     # the document
 
@@ -231,14 +305,14 @@ class _Patch:
             else self.created[id(vertex)]
         return self.document.find_element_by_id(element_id)
 
-    def comments(self):
+    def document_comments(self):
         for machine in self.document.get_state_machines():
             yield from machine.find_elements_by_types(COMMENT_TYPES)
 
     def detach(self, ids):
         """Remove the comment links to the elements; return them."""
         links = []
-        for comment in self.comments():
+        for comment in self.document_comments():
             subjects = comment.get_subjects()
             for index in range(len(subjects) - 1, -1, -1):
                 subject = subjects[index]
@@ -317,6 +391,8 @@ class _Patch:
                  if id(v) in self.match and v.kind != MACHINE and
                  self.match.get(id(v.parent)) is not self.match[id(v)].parent]
         pairs, gone, added = self.transitions()
+        for old, new in pairs:
+            self.transition_ids[id(new)] = old.element_id
         removed_ids = {v.element_id for v in removed}
         removed_ids.update(t.element_id for t in gone)
         self.detach(removed_ids)
@@ -334,6 +410,7 @@ class _Patch:
                not same_text(old.action, new.action):
                 self.update_action(old, new)
         self.attach(links)
+        self.edit_comments()
         self.grow()
         self.meta()
 
@@ -390,18 +467,24 @@ class _Patch:
                                        parent=vertex.parent.name))
 
     def grow(self):
-        """A drawn simple state whose text grew grows from its corner by
-        the estimate of what it gained; the layout keeps the ends of its
-        routes on the new border."""
+        """A drawn simple state or comment whose text grew grows from its
+        corner by the estimate of what it gained; the layout keeps the ends
+        of its routes and links on the new border."""
         grown = []
-        for vertex, old in self.texts.values():
-            element = self.document.find_element_by_id(old.element_id)
+        sizes = [(old.element_id, CyberiadaML.elementSimpleState,
+                  text_size(old), text_size(vertex))
+                 for vertex, old in self.texts.values()]
+        sizes.extend((old.element_id, CyberiadaML.elementComment,
+                      comment_size(old.title, comment_body(old.body)),
+                      comment_size(title, comment_body(comment.body)))
+                     for title, comment, old in self.notes)
+        for element_id, kind, (w0, h0), (w1, h1) in sizes:
+            element = self.document.find_element_by_id(element_id)
             if element is None or not element.has_geometry() or \
-               element.get_type() != CyberiadaML.elementSimpleState:
+               element.get_type() != kind:
                 continue
-            (w0, h0), (w1, h1) = text_size(old), text_size(vertex)
             if w1 > w0 or h1 > h0:
-                grown.append((old.element_id, max(w1 - w0, 0.0),
+                grown.append((element_id, max(w1 - w0, 0.0),
                               max(h1 - h0, 0.0)))
         if not grown:
             return
@@ -435,8 +518,97 @@ class _Patch:
                                      transition,
                                      self.element(transition.source),
                                      self.element(transition.target))
+            self.transition_ids[id(transition)] = element.get_id()
             self.changes.append(Change('C06', element.get_id(),
                                        label=_label(transition)))
+
+    # the comments
+
+    def target_id(self, target):
+        """The element id of a subject of the new tree."""
+        if isinstance(target, Transition):
+            return self.transition_ids.get(id(target))
+        if isinstance(target, Comment):
+            return self.created.get(id(target)) or \
+                self.match[id(target)].element_id
+        return self.element(target).get_id()
+
+    def edit_comments(self):
+        """Remove the comments that went, create the new ones, edit the
+        texts and the titles, then link: what stays keeps its geometry."""
+        for old in self.old.comments():
+            if id(old) in self.claimed or \
+               self.document.find_element_by_id(old.element_id) is None:
+                continue
+            self.document.find_element_by_id(old.parent_element_id) \
+                .remove_element(old.element_id)
+            self.changes.append(Change('C10', name=_comment_label(old)))
+        fresh = []
+        for comment in self.new.comments():
+            old = self.match.get(id(comment))
+            element = self.document.find_element_by_id(old.element_id) \
+                if old is not None else None
+            if element is None:
+                element = new_comment(self.document, comment, self.element(
+                    container(comment.parent)))
+                self.created[id(comment)] = element.get_id()
+                self.changes.append(Change('C09', element.get_id(),
+                                           name=_comment_label(comment)))
+                fresh.append(comment)
+            else:
+                self.edit_comment(comment, old, element)
+        for comment in fresh:
+            element = self.document.find_element_by_id(
+                self.created[id(comment)])
+            for subject in comment.subjects:
+                add_subject(self.document, element, subject,
+                            self.document.find_element_by_id(
+                                self.target_id(subject.target)))
+        for comment in self.new.comments():
+            old = self.match.get(id(comment))
+            if old is not None and id(comment) not in self.created:
+                self.relink(comment, old)
+
+    def edit_comment(self, comment, old, element):
+        title = old.title if comment.name == old.name or \
+            (comment.name or '').startswith(UNNAMED) else comment.name
+        changed = False
+        if (title or '') != (old.title or ''):
+            element.set_name(title or '')
+            changed = True
+        if comment_body(comment.body) != comment_body(old.body):
+            element.set_body(comment.body)
+            changed = True
+        if changed:
+            self.notes.append((title, comment, old))
+            self.changes.append(Change('C11', old.element_id,
+                                       name=_comment_label(comment)))
+
+    def relink(self, comment, old):
+        """The links of a kept comment: those the notation shows are
+        compared, the others stay."""
+        shown = [(s.element_id, s.kind, s.fragment) for s in old.subjects]
+        wanted = [(self.target_id(s.target), s.kind, s.fragment)
+                  for s in comment.subjects]
+        gone = [key for key in shown if key not in wanted]
+        come = [key for key in wanted if key not in shown]
+        if not gone and not come:
+            return
+        element = self.document.find_element_by_id(old.element_id)
+        subjects = element.get_subjects()
+        for index in range(len(subjects) - 1, -1, -1):
+            linked = subjects[index].get_element()
+            key = (linked.get_id() if linked is not None else None,
+                   SUBJECT_KINDS.get(subjects[index].get_type()),
+                   subjects[index].get_fragment() or '')
+            if key in gone:
+                element.remove_subject(index)
+                gone.remove(key)
+        for target_id, kind, fragment in come:
+            add_subject(self.document, element, Subject(kind, fragment),
+                        self.document.find_element_by_id(target_id))
+        self.changes.append(Change('C12', old.element_id,
+                                   name=_comment_label(comment)))
 
     def rename_and_act(self):
         for vertex in self.new.walk():

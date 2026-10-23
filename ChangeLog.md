@@ -13,6 +13,10 @@ Added:
   in English and Russian;
 - the points, the submachine states, the history and the event propagation
   in the notation;
+- the comments in the notation: a title, a Markdown text and the links to
+  states, transitions, other comments and fragments of their texts; the
+  model is asked to comment what the diagram does not say, and an update
+  adds, edits, relinks and removes comments;
 - the change of an existing diagram (`--update`): what the change does not
   touch keeps its identifier, its drawing and its comments;
 - the plugin of CyberiadaPro: draw, change, show the notation;
