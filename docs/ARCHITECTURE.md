@@ -472,6 +472,17 @@ layout, fixed in `libhtreegeom` and `libcyberiadaml` (a new state on a
 drawn route, the routes of a wrapped drawing, the label of a drawn
 transition without one, the ends of a route on a grown state).
 
+The comment runs of 2026-10-23, `deepseek-flash`, the default options:
+
+| Prompt | Language | Rounds | Input / output tokens | Comments |
+|---|---|---|---|---|
+| coffee machine with an empty tank | en | 1 | 1785 / 1335 | 2: a design decision on the `WATER_EMPTY` transition, an open question on `Error` |
+| traffic light with a pedestrian button and a night mode | ru | 1 | 2573 / 1282 | 2: on `Зелёный` and on `Ночь`, why the blinking is an internal transition |
+| change: return the coin after a refill | en | 1 | 2050 / 496 | the open question answered: its text rewritten, its link moved to the `REFILLED` transition (C08, C11, C12) |
+| change: remove the night mode | ru | 1 | 2850 / 380 | the comment on `Ночь` removed with the state (C10) |
+
+All four documents passed the strict checks and opened in `CyberiadaPro`.
+
 ## Reuse
 
 | Need | Existing tool |
@@ -494,6 +505,12 @@ transition without one, the ends of a route on a grown state).
 * Several regions and internal transitions without an event are not in
   the notation; the formal comments are shown as notes and kept, the
   links to an initial or its transition are kept unseen.
+* The layout sizes a comment by its longest line, at least the size of a
+  state, and places it beside its first subject checking the vertices of
+  the subject's level only: a comment of a machine on a nested state, or a
+  long one, may cover a route, a label or another vertex (`libcyberiadaml`
+  size estimate, `libhtreegeom` P10, and their ports in
+  `cyberiadaml-py`).
 
 ## Roadmap
 
