@@ -1,6 +1,6 @@
 # The Cybersphere HSM Maker Interface Specification
 
-Document version: 0.5 (2026-10-15)
+Document version: 0.6 (2026-10-23)
 
 The package `hsm_maker` and the command `hsm-maker`. The reasons are in
 `ARCHITECTURE.md`, the notation and its issue codes in `NOTATION.md`.
@@ -47,13 +47,25 @@ The notation tree, its parser and its checks. It does not use the `CyberiadaML` 
 * `Diagram` - the tree: `name`, `description`, `language` (the code
   language, meta `platformLanguage`), `machines` (the vertices of
   the kind `MACHINE`), `notes` (`(vertex or None, text)`, written as `#
-  note:` lines), `walk()` (every vertex in the notation order).
+  note:` lines), `walk()` (every vertex in the notation order),
+  `comments()` (every comment in the notation order).
 * `Vertex` - a machine, a state, a submachine, a pseudostate or a point:
   `kind`, `name`, `line`, `parent`, `children`, `behaviours`, `internals`
   (the internal transitions), `transitions` (the outgoing transitions),
   `reference` (the machine name of a submachine), `was` (the `(was OLD)`
-  text), `element_id` (set by the reader), `machine`, `path` (the
-  qualified name in the machine, `Moving::MovingUp`), `walk()`.
+  text), `element_id` (set by the reader), `comments` (the comments
+  written in it), `machine`, `path` (the qualified name in the machine,
+  `Moving::MovingUp`), `walk()`.
+* `Comment` - an informal comment: `name` (its title or its `_commentN`
+  name, `None` when a new one has none), `title` (the title in the
+  document, set by the reader), `body` (the Markdown text), `subjects`,
+  `parent` (the machine or the state it is written in), `line`, `was`,
+  `element_id`, `unnamed` (set by the reader).
+* `Subject` - a link of a comment: `kind` (`'element'`, `'name'`,
+  `'body'`), `fragment`, `ref` (a vertex or comment reference) or
+  `source_ref`, `event`, `guard`, `propagation`, `target_ref` (a
+  transition), `target` (the `Vertex`, `Comment` or `Transition`, set by
+  `analyze`), `element_id` (set by the reader).
 * `Behaviour` - `entry/` or `exit/`: `kind` (`'entry'`, `'exit'`),
   `action`, `line`.
 * `Transition` - `line`, `source`, `event`, `guard`, `action`,
@@ -101,9 +113,12 @@ A document to the notation tree.
   transitions with their `element_id` (an empty entry or exit behaviour
   is left out), the names `_kindN` (`_final1`) for
   the unnamed final, choice, terminate, history and submachine states, the
-  notes for the comments, the component declarations, the other formal
-  comments and the meta parameters other than the name and the
-  description. Raises `ReadError` for what the notation cannot show.
+  informal comments with their links (`_commentN` for an unnamed comment
+  or a title the notation cannot write; the links to an initial, its
+  transition or a formal comment left out), the notes for the component
+  declarations, the other formal comments and the meta parameters other
+  than the name and the description. Raises `ReadError` for what the
+  notation cannot show.
 
 ## Module patcher
 
@@ -113,7 +128,9 @@ The difference of two trees applied to a document.
   message (`C01` added, `C02` removed, `C03` renamed, `C04` moved, `C05`
   behaviour changed, `C06` transition added, `C07` transition removed,
   `C08` transition label changed: the same ends, another event, guard,
-  flag or action, edited in place), the id of the element in the result.
+  flag or action, edited in place, `C09` comment added, `C10` comment
+  removed, `C11` comment text or title changed, `C12` comment links
+  changed), the id of the element in the result.
 * `PatchError(issues)` - the new tree names the old one wrongly (`U02` -
   `U04`).
 * `patch(graphml, old, new, geometry=GEOMETRY_UPDATE)` - decode the

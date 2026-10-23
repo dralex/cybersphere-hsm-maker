@@ -1,6 +1,6 @@
 # The Cybersphere HSM Maker Architecture
 
-Document version: 0.5 (2026-10-15)
+Document version: 0.6 (2026-10-23)
 
 The maker turns a description of a system written in a natural language
 into a Hierarchical State Machine (HSM) diagram stored in the
@@ -78,6 +78,13 @@ machine Lift
     FLOOR [floor == target] -> Idle
 ```
 
+Comments are a part of the diagram: a `comment` line with its title, its
+Markdown text below it and the links to what it explains (`on Idle`, `on
+DoorsOpen TIMEOUT -> Idle`, a quoted fragment of an action). The model is
+asked to comment what the diagram does not say by itself - the purpose of
+a state, an assumption, a design decision, an open question - and to keep
+the comments true when it changes a diagram.
+
 The choice follows the experience of the LLM tester of
 `CyberiadaHSM-Editor`, which drew diagrams with editor scripts and later
 with tool calls:
@@ -152,14 +159,15 @@ opens in `CyberiadaPro` only with the reconstruction on loading.
 `hsm-maker --update in.graphml` changes a diagram. The answer of the model
 is the whole changed diagram; the maker applies the difference to the
 document itself, so an element that stays keeps its identifier, its
-geometry and what the notation does not show: comments, component
-declarations, prompts, colours, meta parameters.
+geometry and what the notation does not show: the formal comments
+(component declarations, prompts), colours, meta parameters.
 
 ```
  in.graphml --decode--> Document --read--> old tree (+ element ids)
                                               |
-                          render: the notation, "# note:" lines for the
-                          hidden parts, `_n` names for unnamed elements
+                          render: the notation with the comments,
+                          "# note:" lines for the hidden parts, `_n`
+                          names for unnamed elements
                                               v
                   system prompt + the diagram + the change request
                                               |
@@ -174,6 +182,8 @@ declarations, prompts, colours, meta parameters.
                   3 move (copy + remove + add, the geometry cleaned;
                     kept in a wrap), rename
                   4 add the new transitions; update the changed actions
+                  5 comments: remove, add, edit the text and the title,
+                    then the links of every comment
                                               |
                  update_geometry: the drawing kept, the new parts laid out
                                               v
@@ -190,7 +200,12 @@ declarations, prompts, colours, meta parameters.
   change; a transition with the same ends and another event, guard or flag
   is edited in place (it keeps its route); anything else is a removal and
   an addition. A vertex of another
-  kind under the same name is removed and added.
+  kind under the same name is removed and added. A comment by its machine
+  and its name - the `(was OLD)` of its line, the `_commentN` of an
+  unnamed one - else by its unchanged text; it stays in its container.
+  Its links are compared by the linked element, the kind (whole, name,
+  body) and the fragment: a kept link keeps its geometry; the links the
+  notation cannot show are kept.
 * **Wraps.** Vertices moved from one parent into a new container keep
   their geometry: the container is laid out around the drawing, which
   keeps its routes (`libhtreegeom` moves a drawn transition with its ends
@@ -199,7 +214,9 @@ declarations, prompts, colours, meta parameters.
   name) grows from its corner by the difference of the text estimates of
   `libcyberiadaml` (20 px a line, 10 px a character); an unchanged text
   changes nothing. The layout keeps the ends of its routes on the new
-  border.
+  border. A drawn comment whose text grew grows the same way; a new
+  comment is placed beside its first subject, an unlinked one beside the
+  machine.
 * **Texts.** An action or a guard that differs from the original only as
   the notation normalises it (indentation, `#` lines, spacing) keeps the
   original text.
@@ -211,8 +228,9 @@ declarations, prompts, colours, meta parameters.
 * **Rounds.** Every round patches a fresh decode of the original, so a
   rejected answer leaves nothing behind.
 * **Changes.** The patch lists what it did - added, removed, renamed,
-  moved, actions changed - with the element identifiers; `--diagnostics`
-  writes them for the editor.
+  moved, actions changed, comments added, removed, edited and relinked -
+  with the element identifiers; `--diagnostics` writes them for the
+  editor.
 * **Handles.** The binding rebuilds its element tree on decode and on the
   geometry calls: the patch fetches every element by its identifier when
   it uses it.
@@ -473,14 +491,15 @@ transition without one, the ends of a route on a grown state).
   its content below the longer header, off the drawn routes into it.
 * A new composite wrapping drawn states is placed after the drawn ones it
   follows; the place the states left stays empty.
-* Comments, several regions and internal transitions without an event are
-  not in the notation; a changed diagram keeps its comments.
+* Several regions and internal transitions without an event are not in
+  the notation; the formal comments are shown as notes and kept, the
+  links to an initial or its transition are kept unseen.
 
 ## Roadmap
 
 1. Platforms: the components, signals and methods of a platform
    description given to the model, `CGML_COMPONENT` declarations written.
-2. The rest of the standard: comments, several regions.
+2. The rest of the standard: several regions.
 3. A review step for the design of the diagram, not only its form.
 4. Layout hints of the notation (the direction) passed to the layout.
 5. A component of `cybersphere-agents`: the specifications as diagrams.
