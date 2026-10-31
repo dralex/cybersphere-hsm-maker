@@ -134,6 +134,7 @@ def test_unreachable():
     with pytest.raises(C.ClientError) as error:
         client.complete('s', MESSAGES)
     assert 'cannot reach' in str(error.value)
+    assert (error.value.status, error.value.kind) == (None, C.NETWORK)
     assert len(pauses) == C.RETRIES - 1
 
 
@@ -271,3 +272,48 @@ def test_large_picture(tmp_path, monkeypatch):
     path.write_bytes(PNG)
     with pytest.raises(C.ConfigError, match='is larger than'):
         C.load_picture(str(path))
+
+
+@pytest.mark.parametrize('status', [401, 402, 404])
+def test_http_status(stub, status):
+    stub.answer({'error': 'refused'}, status)
+    with pytest.raises(C.ClientError) as error:
+        make(stub)[0].complete('s', MESSAGES)
+    assert (error.value.status, error.value.kind) == (status, C.HTTP)
+
+
+def test_server_status_after_retries(stub):
+    for _ in range(C.RETRIES):
+        stub.answer({'error': 'down'}, 503)
+    with pytest.raises(C.ClientError) as error:
+        make(stub)[0].complete('s', MESSAGES)
+    assert error.value.status == 503
+
+
+def test_timeout():
+    # a server that takes the connection and never answers
+    with socket.socket() as server:
+        server.bind(('127.0.0.1', 0))
+        server.listen(1)
+        client = C.Client(C.CHAT_COMPLETIONS, 'http://127.0.0.1:{}'.format(
+            server.getsockname()[1]), 'm', timeout=0.2, retries=1)
+        with pytest.raises(C.ClientError) as error:
+            client.complete('s', MESSAGES)
+    assert error.value.kind == C.TIMED_OUT
+    assert 'no answer from' in str(error.value)
+
+
+def test_malformed_kind(stub):
+    stub.answer({'choices': []})
+    with pytest.raises(C.ClientError) as error:
+        make(stub)[0].complete('s', MESSAGES)
+    assert error.value.kind == C.ANSWER
+
+
+def test_key_hint():
+    with pytest.raises(C.ConfigError) as error:
+        C.resolve_key('https://api.example.org/v1', environ={})
+    assert error.value.hint == C.KEY_HINT
+    with pytest.raises(C.ConfigError) as error:
+        C.resolve_key('https://api.example.org/v1', 'MY_KEY', environ={})
+    assert error.value.hint == C.KEY_HINT

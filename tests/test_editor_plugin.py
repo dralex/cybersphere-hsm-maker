@@ -85,6 +85,8 @@ def test_descriptor():
     parameters = {p['id']: p for p in plugin['parameters']}
     assert parameters['key']['type'] == 'secret'
     assert parameters['picture']['type'] == 'file'
+    assert (parameters['verbose']['type'], parameters['verbose']['default']) \
+        == ('bool', False)
     for action in plugin['actions']:
         assert action['result'] in RESULTS
         assert set(action['parameters']) <= set(parameters)
@@ -181,9 +183,12 @@ def test_draw_by_picture(stub, tmp_path):
     stub.answer(chat_answer(fenced(diagram('lift.hsm'))))
     drawn = tmp_path / 'lift.graphml'
     run = editor(['--run-plugin', 'hsm-maker:draw', '--plugin-param',
-                  'picture=' + str(picture)] + model(stub) +
-                 ['--save', str(drawn)], tmp_path, 'k')
+                  'picture=' + str(picture), '--plugin-param',
+                  'verbose=true'] + model(stub) + ['--save', str(drawn)],
+                 tmp_path, 'k')
     assert run.returncode == 0, run.stdout + run.stderr
+    assert '[picture lift.png, image/png, 1 KiB]' in run.stdout
+    assert 'round 1: the diagram is accepted' in run.stdout
     content = stub.requests[0][2]['messages'][1]['content']
     assert [part['type'] for part in content] == ['image_url', 'text']
     assert 'Lift' in drawn.read_text(encoding='utf-8')

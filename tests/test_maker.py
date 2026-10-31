@@ -194,3 +194,19 @@ def test_change_by_picture():
     hsm_maker.update(graphml, 'Add a service mode', client, pictures=[IMAGE])
     assert 'Add a service mode\n\n' + texts.text('picture_change') in \
         client.calls[0][1][0]['content']
+
+
+def test_trace_before_every_request():
+    calls = []
+    client = FakeClient([fenced(WRONG), fenced(LIFT)])
+    M.run(PROMPT, client, trace=lambda number, system, messages: calls.append(
+        (number, system, [dict(m) for m in messages])))
+    assert [(n, s) for n, s, _ in calls] == [(1, Texts('en').system),
+                                            (2, Texts('en').system)]
+    assert [m for _, _, m in calls] == [c[1] for c in client.calls]
+
+
+def test_result_truncated():
+    assert M.run(PROMPT, FakeClient([(fenced(WRONG), True)]),
+                 rounds=1).truncated
+    assert not M.run(PROMPT, FakeClient([fenced(LIFT)])).truncated

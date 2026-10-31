@@ -58,7 +58,9 @@ def test_configuration_errors(capsys):
     assert 'HSM_MAKER_URL' in capsys.readouterr().err
     assert cli.main(['--url', 'https://api.example.org/v1', '--model', 'm',
                      'a lift']) == cli.EXIT_USAGE
-    assert 'EXAMPLE_API_KEY' in capsys.readouterr().err
+    err = capsys.readouterr().err
+    assert 'EXAMPLE_API_KEY' in err
+    assert err.splitlines()[-1].startswith('What to do: give the key')
     assert cli.main(['--language', 'ru', '--notation', 'absent.hsm']) == \
         cli.EXIT_USAGE
 
@@ -71,9 +73,15 @@ def test_model_run(stub, tmp_path, capsys):
     assert cli.main(['--url', stub.url, '--model', 'm', '-o', str(out),
                      '--save-notation', str(notation), '-v',
                      'a lift']) == cli.EXIT_MADE
-    err = capsys.readouterr().err
-    assert '== round 1: requests: 1' in err and '== 1 issues' in err
-    assert 'rounds: 2, requests: 2, input tokens: 20, output tokens: 10' in err
+    messages = capsys.readouterr().out
+    assert 'round 1 of 3: asking m...' in messages
+    assert '-- user:\na lift\n' in messages
+    assert '-- assistant (' in messages and fenced(WRONG) in messages
+    assert 'line 4 "GO -> Missng": unknown target \'Missng\'' in messages
+    assert 'round 1: the answer has issues (1)' in messages
+    assert '-- with the request of round 1 and the last answer' in messages
+    assert 'round 2: the diagram is accepted' in messages
+    assert 'rounds: 2, requests: 2, input tokens: 20, output tokens: 10' in messages
     assert notation.read_text(encoding='utf-8') == diagram('lift.hsm')
     assert validate(str(out)) in (None, [])
     assert stub.requests[0][2]['messages'][1]['content'] == 'a lift'
@@ -87,7 +95,14 @@ def test_not_made(stub, tmp_path, monkeypatch, capsys):
     out = tmp_path / 'out.graphml'
     assert cli.main(['--rounds', '1', '-f', '-', '-o', str(out)]) == \
         cli.EXIT_NOT_MADE
-    assert "line 4: unknown target 'Missng'" in capsys.readouterr().err
+    streams = capsys.readouterr()
+    assert 'round 1: the answer has issues (1), no rounds left' in streams.out
+    lines = streams.err.splitlines()
+    assert lines[0] == 'The diagram is not made: the answer of round 1 ' \
+        'still has issues (1):'
+    assert lines[1] == '  line 4 "GO -> Missng": unknown target \'Missng\'; ' \
+        'known: A'
+    assert lines[-1].startswith('What to do: ') and '--rounds' in lines[-1]
     assert not out.exists()
 
 
@@ -102,7 +117,19 @@ def test_server_error(stub, capsys):
     stub.answer({'error': 'unknown model'}, 400)
     assert cli.main(['--url', stub.url, '--model', 'm', 'a lift']) == \
         cli.EXIT_SERVER
-    assert 'HTTP 400' in capsys.readouterr().err
+    lines = capsys.readouterr().err.splitlines()
+    assert lines[0] == 'round 1 of 3: asking m...'
+    assert lines[1].startswith('hsm-maker: HTTP 400')
+    assert lines[-1].startswith('What to do: the server refused the request')
+
+
+def test_refused_key(stub, capsys):
+    stub.answer({'error': 'invalid key'}, 401)
+    assert cli.main(['--url', stub.url, '--model', 'm', 'a lift']) == \
+        cli.EXIT_SERVER
+    lines = capsys.readouterr().err.splitlines()
+    assert lines[1].startswith('hsm-maker: HTTP 401')
+    assert lines[-1].startswith('What to do: the server refused the key')
 
 
 def picture_files(tmp_path):

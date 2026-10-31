@@ -32,11 +32,11 @@ from .builder import CHANGE_GEOMETRIES, GEOMETRY_FULL, GEOMETRY_UPDATE
 from .client import (ClientError, ConfigError, PROTOCOLS, from_environment,
                      load_picture)
 from .language import AUTO, Texts, choose, languages
-from .maker import (NO_PICTURE, REQUEST_LIMIT, ROUNDS, Original, change,
-                    convert, run, run_update)
+from .maker import ROUNDS, Original, change, convert, run, run_update
 from .notation import ERROR, WARNING
 from .plugin import PLUGIN_ID, PluginError, install
 from .reader import ReadError
+from .report import PROGRAM, Report
 
 EXIT_MADE = 0
 EXIT_NOT_MADE = 1
@@ -46,7 +46,6 @@ EXIT_SERVER = 3
 ENV_LANGUAGE = 'HSM_MAKER_LANGUAGE'
 ENV_CODE_LANGUAGE = 'HSM_MAKER_CODE_LANGUAGE'
 STDIN = '-'
-PROGRAM = 'hsm-maker'
 
 
 def parser():
@@ -109,8 +108,10 @@ def parser():
     commands.add_argument('--key-env', metavar='NAME',
                           help='the variable with the key '
                           '($HSM_MAKER_KEY_ENV)')
-    commands.add_argument('-v', '--verbose', action='store_true',
-                          help='report every round')
+    commands.add_argument('-v', '--verbose', action='count', default=0,
+                          help='show the dialog with the model: the messages '
+                          'and the answers of every round; -vv adds the '
+                          'system prompt')
     commands.add_argument('--version', action='version',
                           version='%(prog)s ' + __version__)
     return commands
@@ -153,14 +154,6 @@ def _say(text):
     print(text, file=sys.stderr)
 
 
-def _round(number, reply, conversion):
-    _say('== round {}: {}{}'.format(number, reply.usage,
-                                    ', cut' if reply.truncated else ''))
-    _say(conversion.notation.rstrip('\n'))
-    _say('== {}'.format('accepted' if conversion.ok else
-                        '{} issues'.format(len(conversion.errors))))
-
-
 def _diagnostics(path, texts, outcome):
     """The issues and the changes as the editor diagnostics JSON."""
     if not path:
@@ -200,20 +193,12 @@ def _offline(options, language, graphml):
     return EXIT_MADE
 
 
-def _made(options, result):
-    texts = Texts(result.language)
+def _made(options, result, report):
     if options.save_notation and result.notation is not None:
         with open(options.save_notation, 'w', encoding='utf-8') as target:
             target.write(result.notation)
-    for issue in result.errors + result.warnings:
-        _say(texts.render(issue))
-    _diagnostics(options.diagnostics, texts, result)
-    if result.reason == REQUEST_LIMIT:
-        _say('{}: the request limit is reached'.format(PROGRAM))
-    if result.reason == NO_PICTURE:
-        _say('{}: the model does not see the picture: choose a model with '
-             'image input'.format(PROGRAM))
-    _say('rounds: {}, {}'.format(result.rounds, result.usage))
+    _diagnostics(options.diagnostics, report.texts, result)
+    report.summary(result)
     if not result.ok:
         return EXIT_NOT_MADE
     _write(options.output, result.graphml)
@@ -236,8 +221,17 @@ def _install_plugin(target):
     return EXIT_MADE
 
 
+def _explain(report, error):
+    """The error and its hint, in the language of the run when it is
+    known."""
+    if report is None:
+        report = Report(Texts(choose(AUTO, '')), sys.stderr)
+    report.explain(error)
+
+
 def main(argv=None):
     options = parser().parse_args(argv)
+    report = None
     language = options.language or os.environ.get(ENV_LANGUAGE) or AUTO
     options.code_language = options.code_language or \
         os.environ.get(ENV_CODE_LANGUAGE) or AUTO
@@ -257,29 +251,35 @@ def main(argv=None):
         if options.notation:
             return _offline(options, language, graphml)
         prompt = _prompt(options)
-        choose(language, prompt)
+        # the messages go beside a document written to a file, else beside
+        # the errors
+        report = Report(Texts(choose(language, prompt)),
+                        sys.stdout if options.output else sys.stderr,
+                        options.verbose, rounds=options.rounds)
         pictures = [load_picture(path) for path in options.pictures or ()]
         client = from_environment(options.protocol, options.url,
                                   options.model, key_env=options.key_env,
                                   max_requests=options.max_requests,
                                   timeout=options.timeout)
-        log = _round if options.verbose else None
+        report.model = client.model
         if graphml is None:
             result = run(prompt, client, language, options.geometry,
-                         options.rounds, log, options.code_language, pictures)
+                         options.rounds, report.log, options.code_language,
+                         pictures, report.trace)
         else:
             result = run_update(graphml, prompt, client, language,
-                                options.geometry, options.rounds, log,
-                                options.code_language, pictures)
-        return _made(options, result)
+                                options.geometry, options.rounds, report.log,
+                                options.code_language, pictures,
+                                report.trace)
+        return _made(options, result, report)
     except (ConfigError, ReadError, PluginError) as error:
-        _say('{}: {}'.format(PROGRAM, error))
+        _explain(report, error)
         return EXIT_USAGE
     except OSError as error:
-        _say('{}: {}'.format(PROGRAM, error))
+        _explain(report, error)
         return EXIT_USAGE
     except ClientError as error:
-        _say('{}: {}'.format(PROGRAM, error))
+        _explain(report, error)
         return EXIT_SERVER
 
 

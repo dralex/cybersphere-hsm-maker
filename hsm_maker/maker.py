@@ -62,7 +62,8 @@ class Conversion:
 class Result:
     """The outcome of a run."""
 
-    def __init__(self, conversion, rounds, usage, language, reason):
+    def __init__(self, conversion, rounds, usage, language, reason,
+                 truncated=False):
         self.ok = conversion is not None and conversion.ok
         self.graphml = conversion.graphml if conversion else None
         self.document = conversion.document if conversion else None
@@ -74,6 +75,7 @@ class Result:
         self.usage = usage
         self.language = language
         self.reason = reason
+        self.truncated = truncated
 
 
 def _chosen(code_language):
@@ -195,10 +197,11 @@ def _blind(reply):
 
 
 def run(prompt, client, language=AUTO, geometry=GEOMETRY_FULL,
-        rounds=ROUNDS, log=None, code_language=AUTO, pictures=()):
+        rounds=ROUNDS, log=None, code_language=AUTO, pictures=(), trace=None):
     """Ask the model until the diagram is made, at most `rounds` times.
-    `log(number, reply, conversion)` is called after every round; the
-    prompt is the comment to the pictures when there are any."""
+    `trace(number, system, messages)` is called before every request,
+    `log(number, reply, conversion)` after every answer; the prompt is the
+    comment to the pictures when there are any."""
     images = _images_of(pictures)
     texts = Texts(choose(language, prompt))
     question = prompt
@@ -207,12 +210,12 @@ def run(prompt, client, language=AUTO, geometry=GEOMETRY_FULL,
             if prompt.strip() else texts.text('picture_alone')
     return _loop(_asked(question, texts, code_language),
                  lambda notation: convert(notation, geometry, code_language),
-                 client, texts, rounds, log, images)
+                 client, texts, rounds, log, images, trace)
 
 
 def run_update(graphml, prompt, client, language=AUTO,
                geometry=GEOMETRY_UPDATE, rounds=ROUNDS, log=None,
-               code_language=AUTO, pictures=()):
+               code_language=AUTO, pictures=(), trace=None):
     """Ask the model to change the diagram until the change applies, at
     most `rounds` times. Raise ReadError before the first request."""
     images = _images_of(pictures)
@@ -227,10 +230,11 @@ def run_update(graphml, prompt, client, language=AUTO,
     return _loop(_asked(question, texts, code_language),
                  lambda notation: change(graphml, notation, geometry, old,
                                          code_language),
-                 client, texts, rounds, log, images)
+                 client, texts, rounds, log, images, trace)
 
 
-def _loop(prompt, conversion_of, client, texts, rounds, log, images=()):
+def _loop(prompt, conversion_of, client, texts, rounds, log, images=(),
+          trace=None):
     """The rounds: ask, convert the answer, give the issues back."""
     before = Usage(client.usage.requests, client.usage.input_tokens,
                    client.usage.output_tokens)
@@ -242,15 +246,21 @@ def _loop(prompt, conversion_of, client, texts, rounds, log, images=()):
     conversion = None
     reason = ROUNDS_SPENT
     done = 0
+    truncated = False
     for number in range(1, rounds + 1):
+        if trace is not None:
+            trace(number, texts.system, messages)
         try:
             reply = client.complete(texts.system, messages)
         except RequestLimitError:
             reason = REQUEST_LIMIT
             break
         done = number
+        truncated = reply.truncated
         if images and _blind(reply):
             reason = NO_PICTURE
+            if log is not None:
+                log(number, reply, None)
             break
         conversion = conversion_of(extract(reply.text))
         if log is not None:
@@ -264,4 +274,4 @@ def _loop(prompt, conversion_of, client, texts, rounds, log, images=()):
                     {'role': 'user',
                      'content': feedback(conversion, texts, reply.truncated)}]
     return Result(conversion, done, _spent(client, before), texts.language,
-                  reason)
+                  reason, truncated)

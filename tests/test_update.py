@@ -106,7 +106,7 @@ def test_update_by_the_model(stub, tmp_path, capsys):
     out = tmp_path / 'out.graphml'
     assert cli.main(['--url', stub.url, '--model', 'm', '--update',
                      str(original), '-o', str(out), CHANGE]) == cli.EXIT_MADE
-    assert 'rounds: 1' in capsys.readouterr().err
+    assert 'rounds: 1' in capsys.readouterr().out
     assert CHANGE in stub.requests[0][2]['messages'][1]['content']
     assert 'Maintenance' in out.read_text(encoding='utf-8')
 

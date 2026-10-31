@@ -33,6 +33,8 @@
   "Python": "Python",
   "Rounds": "Раунды",
   "How many times the model may correct its answer": "Сколько раз модель может исправить свой ответ",
+  "Show the dialog": "Показывать диалог",
+  "Show every message to the model and every answer in the output tab; the progress and the hints are shown anyway": "Показывать во вкладке вывода каждое сообщение модели и каждый её ответ; ход работы и подсказки показываются всегда",
   "Draw a new diagram...": "Нарисовать новую диаграмму...",
   "A new diagram from a description or a picture": "Новая диаграмма по описанию или рисунку",
   "Change the diagram...": "Изменить диаграмму...",

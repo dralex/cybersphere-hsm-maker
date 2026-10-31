@@ -85,7 +85,11 @@ model.
 `--update FILE` changes an existing diagram: what the change does not touch
 keeps its identifier, its place and its comments, the new elements are
 placed around the drawing. `--render FILE` prints a diagram in the notation.
-`--diagnostics FILE` writes the issues and the changes as JSON.
+`--diagnostics FILE` writes the issues and the changes as JSON. Every
+round reports its progress; a failure ends with the issues of the last
+answer, each with its line quoted, or the error of the server, and a line
+saying what to do. `-v` shows the whole dialog with the model (`-vv` with
+the system prompt); with `-o` these messages go to the standard output.
 `editor-plugin/` is the plugin of `CyberiadaPro` (see its README).
 
     hsm-maker --picture sketch.png -o light.graphml "a traffic light, events in English"

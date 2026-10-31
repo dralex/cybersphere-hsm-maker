@@ -28,6 +28,7 @@ import ipaddress
 import json
 import os
 import re
+import socket
 import time
 import urllib.error
 import urllib.parse
@@ -66,6 +67,14 @@ MAX_IMAGE = 20 * MEBIBYTE
 SVG_HEAD = 1024
 SVG_RE = re.compile(rb'<svg[\s>]', re.I)
 
+# the kinds of a ClientError
+HTTP = 'http'
+NETWORK = 'network'
+TIMED_OUT = 'timeout'
+ANSWER = 'answer'
+# the hint of a missing key, in messages.json
+KEY_HINT = 'hint_key'
+
 ENV_PROTOCOL = 'HSM_MAKER_PROTOCOL'
 ENV_URL = 'HSM_MAKER_URL'
 ENV_MODEL = 'HSM_MAKER_MODEL'
@@ -75,11 +84,22 @@ KEY_SUFFIX = '_API_KEY'
 
 
 class ConfigError(Exception):
-    """A missing or bad option, URL, model or key."""
+    """A missing or bad option, URL, model or key; `hint` names the hint
+    text in messages.json."""
+
+    def __init__(self, message, hint=None):
+        super().__init__(message)
+        self.hint = hint
 
 
 class ClientError(Exception):
-    """The server failed or answered something unreadable."""
+    """The server failed or answered something unreadable: the HTTP status
+    and the kind of the failure."""
+
+    def __init__(self, message, status=None, kind=HTTP):
+        super().__init__(message)
+        self.status = status
+        self.kind = kind
 
 
 class RequestLimitError(ClientError):
@@ -174,6 +194,13 @@ def _address(host):
         return None
 
 
+def _timed_out(error):
+    """Whether a network failure is a timeout, raised or wrapped."""
+    timeouts = (socket.timeout, TimeoutError)
+    return isinstance(error, timeouts) or \
+        isinstance(getattr(error, 'reason', None), timeouts)
+
+
 def is_local(url):
     """Whether the server is on the local host."""
     host = _host(url)
@@ -202,7 +229,8 @@ def resolve_key(url, key_env=None, environ=None):
     environ = os.environ if environ is None else environ
     if key_env:
         if not environ.get(key_env):
-            raise ConfigError('the key variable {} is not set'.format(key_env))
+            raise ConfigError('the key variable {} is not set'.format(key_env),
+                              KEY_HINT)
         return environ[key_env]
     if environ.get(ENV_KEY):
         return environ[ENV_KEY]
@@ -214,7 +242,7 @@ def resolve_key(url, key_env=None, environ=None):
     raise ConfigError('no key for {}: set {}{}, or name the variable with '
                       '--key-env'.format(_host(url) or url, ENV_KEY,
                                          ' or ' + conventional
-                                         if conventional else ''))
+                                         if conventional else ''), KEY_HINT)
 
 
 class Client:
@@ -285,7 +313,8 @@ class Client:
                           usage.get('completion_tokens', 0))
             truncated = choice.get('finish_reason') == 'length'
         except (KeyError, IndexError, TypeError, AttributeError) as error:
-            raise ClientError('malformed answer: {!r}'.format(error)) from None
+            raise ClientError('malformed answer: {!r}'.format(error),
+                              kind=ANSWER) from None
         return self._reply(text, spent, truncated)
 
     def _messages_reply(self, answer):
@@ -297,7 +326,8 @@ class Client:
                           usage.get('output_tokens', 0))
             truncated = answer.get('stop_reason') == 'max_tokens'
         except (KeyError, TypeError, AttributeError) as error:
-            raise ClientError('malformed answer: {!r}'.format(error)) from None
+            raise ClientError('malformed answer: {!r}'.format(error),
+                              kind=ANSWER) from None
         return self._reply(text, spent, truncated)
 
     def _reply(self, text, spent, truncated):
@@ -337,15 +367,18 @@ class Client:
             except urllib.error.HTTPError as error:
                 text = error.read().decode('utf-8', 'replace')[:ERROR_TEXT]
                 failure = ClientError('HTTP {} from {}: {}'.format(
-                    error.code, url, text))
+                    error.code, url, text), error.code)
                 if error.code != TOO_MANY and error.code < SERVER_ERRORS:
                     raise failure from None
                 last = error
             except ValueError as error:
                 raise ClientError('unreadable answer from {}: {}'.format(
-                    url, error)) from None
+                    url, error), kind=ANSWER) from None
             except (urllib.error.URLError, OSError) as error:
-                failure = ClientError('cannot reach {}: {}'.format(url, error))
+                failure = ClientError('no answer from {} in {:g} s'.format(
+                    url, self.timeout), kind=TIMED_OUT) if _timed_out(error) \
+                    else ClientError('cannot reach {}: {}'.format(url, error),
+                                     kind=NETWORK)
                 last = error
             if attempt + 1 < attempts:
                 self._pause(attempt, last)

@@ -40,7 +40,7 @@ buttons.
                        Change the diagram...   the open diagram changed (one undo step)
                        Show the notation       the notation in the plugin Output
                        Settings...             model, server, protocol, key, language,
-                                               code language, rounds
+                                               code language, rounds, show the dialog
 ```
 
 * **Draw a new diagram...** asks for the description and opens the result
@@ -71,5 +71,16 @@ buttons.
 * The menu and the dialog texts follow the editor's interface language
   (`i18n/ru.json`).
 
-A run takes from a few seconds to a few minutes; the Output tab shows the
-rounds and the tokens spent, Cancel stops it.
+A run takes from a few seconds to a few minutes; Cancel stops it. The
+output tab shows every round as it goes: the request to the model, the
+issues found in its answer, the tokens and the seconds spent.
+
+* **When a run fails** the end of the output tab (in red) says why: the
+  issues left in the last answer, each with the line of the answer it is
+  about, or the error of the server; its last line says what to do - a
+  more precise description, more rounds, another model, the key, the
+  balance of the account, the server address.
+* **Show the dialog** (Settings) adds the whole dialog to the output tab:
+  every message sent to the model (the request, the corrections; a picture
+  by its name and size), every answer in full and its issues. Save the tab
+  to a file to keep it.

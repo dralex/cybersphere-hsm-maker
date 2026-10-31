@@ -1,6 +1,6 @@
 # The Cybersphere HSM Maker Interface Specification
 
-Document version: 0.7 (2026-10-31)
+Document version: 0.8 (2026-10-31)
 
 The package `hsm_maker` and the command `hsm-maker`. The reasons are in
 `ARCHITECTURE.md`, the notation and its issue codes in `NOTATION.md`.
@@ -11,8 +11,9 @@ The package `hsm_maker` and the command `hsm-maker`. The reasons are in
 * `make(prompt, client=None, *, protocol=None, url=None, model=None,
   key=None, key_env=None, language='auto', code_language='auto',
   geometry='full', rounds=3, max_requests=None, timeout=None, log=None,
-  pictures=())` - make a diagram from the description `prompt`; return a
-  `Result`; `code_language`, `log` and `pictures` as in `maker.run`.
+  pictures=(), trace=None)` - make a diagram from the description `prompt`;
+  return a `Result`; `code_language`, `log`, `pictures` and `trace` as in
+  `maker.run`.
   Without `client` a `Client` is created from the arguments and the
   environment (`client.from_environment`). Raises `ConfigError` for a bad
   configuration and `ClientError` when the server fails.
@@ -144,8 +145,14 @@ The model servers.
 
 * `CHAT_COMPLETIONS`, `MESSAGES` - the protocols, `'chat-completions'` and
   `'messages'`.
-* `ConfigError` - a missing or bad option, URL, model or key.
-* `ClientError` - the server failed or answered something unreadable.
+* `ConfigError(message, hint=None)` - a missing or bad option, URL, model
+  or key; `hint` - the key of a hint text of `messages.json` (`'hint_key'`
+  for a missing key), else `None`.
+* `HTTP`, `NETWORK`, `TIMED_OUT`, `ANSWER` - the kinds of a `ClientError`:
+  an HTTP error, an unreachable server, no answer in time, an unreadable
+  answer.
+* `ClientError(message, status=None, kind=HTTP)` - the server failed or
+  answered something unreadable; `status` - the HTTP code, else `None`.
 * `RequestLimitError(ClientError)` - the request limit is reached.
 * `Usage` - `requests`, `input_tokens`, `output_tokens`; `add(usage)`.
 * `Reply` - `text`, `usage` (of this request), `truncated` (the answer was
@@ -180,6 +187,26 @@ The model servers.
   key_env=None, environ=os.environ, **options)` - a `Client` from the
   arguments, else `HSM_MAKER_PROTOCOL`, `HSM_MAKER_URL`, `HSM_MAKER_MODEL`,
   `HSM_MAKER_KEY_ENV`. Raises `ConfigError`.
+
+## Module report
+
+The messages of a run (`ARCHITECTURE.md`, The messages).
+
+* `QUOTE_LIMIT` - the longest quoted line of an answer, in characters.
+* `quoted(texts, issue, notation)` - `line N "the line": message`, the line
+  of the notation cut at `QUOTE_LIMIT`; `texts.render(issue)` when the
+  issue has no line or the line is not there.
+* `hint(texts, error)` - the hint text of a `ConfigError`, `ClientError` or
+  `ReadError`, `None` when there is none.
+* `Report(texts, stream, verbosity=0, model=None, rounds=ROUNDS,
+  errors=sys.stderr)` - the messages of one run: `stream` takes the
+  progress and the dialog, `errors` the failure and its hint; `verbosity` 1
+  adds the dialog, 2 the system prompt.
+  * `trace(number, system, messages)`, `log(number, reply, conversion)` -
+    the callbacks of `maker.run`.
+  * `summary(result)` - the warnings, the usage, and for a diagram not made
+    the issues quoted, the reason and its hint.
+  * `explain(error)` - the message of an error and its hint.
 
 ## Module language
 
@@ -236,7 +263,8 @@ The conversion and the repair loop.
   `document`, `graphml`, `errors`, `warnings`, `changes`, `ok`.
 * `Result` - `ok`, `graphml`, `document`, `notation` (of the last round),
   `errors`, `warnings`, `changes`, `rounds`, `usage`, `language`, `reason`
-  (`'accepted'`, `'rounds'`, `'request-limit'`, `'no-picture'`).
+  (`'accepted'`, `'rounds'`, `'request-limit'`, `'no-picture'`), `truncated`
+  (the last answer was cut by the length limit).
 * `convert(notation, geometry=GEOMETRY_FULL, code_language=AUTO)` - parse,
   analyse, build, encode and verify one notation; return a `Conversion`.
   A `code_language` other than `AUTO` replaces the `language:` of the
@@ -250,9 +278,11 @@ The conversion and the repair loop.
 * `feedback(conversion, texts, truncated=False)` - the message to the
   model about a rejected conversion.
 * `run(prompt, client, language=AUTO, geometry=GEOMETRY_FULL,
-  rounds=ROUNDS, log=None, code_language=AUTO, pictures=())` - the loop of
-  `ARCHITECTURE.md`; return a `Result`. `log(number, reply, conversion)` is
-  called after every round. A `code_language` other than `AUTO` is asked of
+  rounds=ROUNDS, log=None, code_language=AUTO, pictures=(), trace=None)` -
+  the loop of `ARCHITECTURE.md`; return a `Result`. `trace(number, system,
+  messages)` is called before every request with what is sent (a user
+  message may have `images`), `log(number, reply, conversion)` after every
+  answer; `conversion` is `None` for a `NO PICTURE` answer. A `code_language` other than `AUTO` is asked of
   the model and written (`ARCHITECTURE.md`, The code language).
   `pictures` - `Image` objects or file paths: the prompt becomes their
   comment and may be empty; they go with the first message of every round;
@@ -262,7 +292,7 @@ The conversion and the repair loop.
   object with `complete(system, messages)` and `usage`.
 * `run_update(graphml, prompt, client, language=AUTO,
   geometry=GEOMETRY_UPDATE, rounds=ROUNDS, log=None, code_language=AUTO,
-  pictures=())` - the loop of the update: the diagram rendered into the
+  pictures=(), trace=None)` - the loop of the update: the diagram rendered into the
   first message, every answer applied with `change`; `code_language` and
   `pictures` as in `run` (a picture shows the change). Raises
   `ReadError` before the first request.
@@ -276,7 +306,7 @@ The conversion and the repair loop.
               [--code-language auto|NAME]
               [--save-notation FILE] [--rounds N] [--max-requests N]
               [--timeout SECONDS] [--protocol chat-completions|messages]
-              [--url URL] [--model NAME] [--key-env NAME] [-v] [--version]
+              [--url URL] [--model NAME] [--key-env NAME] [-v[v]] [--version]
     hsm-maker --install-editor-plugin [DIR]
 
 * `python -m hsm_maker` runs the same command.
@@ -306,8 +336,13 @@ The conversion and the repair loop.
 * The document goes to `-o FILE` or to the standard output; a file is
   written only for a made diagram. `--save-notation` writes the last
   notation in any case.
-* The issues and the usage (`rounds: N, requests: N, input tokens: N,
-  output tokens: N`) go to the standard error; `-v` adds every round.
+* The messages - the progress of every round, the warnings and the usage
+  (`rounds: N, requests: N, input tokens: N, output tokens: N`) - go to the
+  standard output when the document goes to `-o FILE`, else to the standard
+  error. `-v` adds the dialog: every message sent, every answer, the
+  issues of every round; `-vv` adds the system prompt.
+* A failure goes to the standard error: the issues of the last answer with
+  their lines quoted, or the error, and a hint what to do as the last line.
 
 Exit codes:
 

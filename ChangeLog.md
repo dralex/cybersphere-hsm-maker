@@ -24,3 +24,8 @@ Added:
   PNG, JPEG, GIF or WebP picture of a statechart or another schema with a
   short comment makes or changes a diagram; a model that does not see it
   stops the run;
+- the messages of a run: the progress of every round, a failure explained
+  with the lines of the answer and a hint what to do (the key, the
+  balance, the model, the server, the rounds), the dialog with the model
+  by `-v` (`-vv` with the system prompt) and the Show the dialog setting
+  of the plugin;

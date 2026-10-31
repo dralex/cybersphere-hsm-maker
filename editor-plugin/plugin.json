@@ -123,6 +123,14 @@
       "min": 1,
       "max": 10,
       "description": "How many times the model may correct its answer"
+    },
+    {
+      "id": "verbose",
+      "type": "bool",
+      "label": "Show the dialog",
+      "scope": "persistent",
+      "default": false,
+      "description": "Show every message to the model and every answer in the output tab; the progress and the hints are shown anyway"
     }
   ],
   "actions": [
@@ -145,7 +153,8 @@
         "key",
         "language",
         "code_language",
-        "rounds"
+        "rounds",
+        "verbose"
       ],
       "description": "A new diagram from a description or a picture",
       "argv": [
@@ -175,7 +184,13 @@
         "--code-language",
         "${param:code_language}",
         "--rounds",
-        "${param:rounds}"
+        "${param:rounds}",
+        {
+          "if": "verbose",
+          "argv": [
+            "-v"
+          ]
+        }
       ]
     },
     {
@@ -198,7 +213,8 @@
         "key",
         "language",
         "code_language",
-        "rounds"
+        "rounds",
+        "verbose"
       ],
       "description": "The open diagram changed by a description or a picture of the change",
       "argv": [
@@ -232,7 +248,13 @@
         "--code-language",
         "${param:code_language}",
         "--rounds",
-        "${param:rounds}"
+        "${param:rounds}",
+        {
+          "if": "verbose",
+          "argv": [
+            "-v"
+          ]
+        }
       ]
     },
     {

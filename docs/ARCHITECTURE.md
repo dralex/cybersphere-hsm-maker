@@ -1,6 +1,6 @@
 # The Cybersphere HSM Maker Architecture
 
-Document version: 0.7 (2026-10-31)
+Document version: 0.8 (2026-10-31)
 
 The maker turns a description of a system written in a natural language
 into a Hierarchical State Machine (HSM) diagram stored in the
@@ -61,6 +61,7 @@ of `cyberiadaml-py` (`cyberiadaml_py.cml`, the same names and results,
 | R10 | Run from `CyberiadaPro`: draw a new diagram, change the open one. | The editor plugin |
 | R11 | Declare the programming language of the actions: the model's choice or the user's. | The code language |
 | R12 | Make or change a diagram by a raster picture of a statechart or of another schema with a short comment. | The pictures |
+| R13 | Tell the user what a run does and, when it fails, why and what to do; show the dialog with the model on demand. | The messages |
 
 ## The notation
 
@@ -364,6 +365,56 @@ diagram, or a change with `--update`), `--picture FILE` adds a picture,
 `--diagnostics FILE` writes the
 issues and the changes for the editor. The details are in `API.md`.
 
+## The messages
+
+The command speaks on two streams: the messages and the errors. The
+editor shows both in the plugin's output tab as the run goes, the errors in
+red; it keeps the diagnostics of a successful run only, so the output tab
+is where a failure is explained.
+
+```
+ cli.main --> Report(texts, stream, verbosity, model)
+                |  trace(number, system, messages)   before every request
+                |  log(number, reply, conversion)    after every answer
+                |  summary(result), explain(error)   at the end
+                v
+ maker.run, run_update (..., trace=report.trace, log=report.log)
+
+ the messages: stdout with -o (the plugin), else stderr
+   progress (always)  round 1 of 3: asking deepseek-flash...
+                      round 1: 2 issues, asking for a correction (2978 / 3538 tokens, 41 s)
+   dialog (-v)        == round 2 of 3
+                      -- system: the instructions in en, 9876 characters
+                      -- user: the request or the feedback; [picture lift.png, image/png, 37 KiB]
+                      -- assistant (12 s, 2978 / 3538 tokens, cut): the whole answer
+                      -- issues: line 4 "GO -> Missng": unknown target ...
+   -vv                the system prompt in full, once
+   the end            the warnings; rounds: N, requests: N, input tokens: N, output tokens: N
+ the errors: stderr
+   failure            the diagram is not made: the answer of round 3 has 2 issues:
+                        line 4 "GO -> Missng": unknown target 'Missng'; known: A, B
+   the last line      what to do: the hint of the failure
+```
+
+An issue quotes its line of the answer: the user never sees the notation.
+The texts are those of the run language (`messages.json`); the dialog
+itself is shown as it was sent, a picture as its name, type and size.
+
+| Failure | The hint |
+|---|---|
+| issues after the last round | describe the part with the issues more precisely, raise the rounds, or choose a stronger model; Verbose shows the dialog |
+| the last answer cut by the length limit | describe a smaller system or draw it in parts |
+| the request limit | the server failed too often: try later or raise `--max-requests` |
+| no picture | choose a model with image input |
+| no key | the API key setting, `HSM_MAKER_API_KEY` or the variable of the server |
+| HTTP 401, 403 | the server refused the key |
+| HTTP 402 | the account has no balance left |
+| HTTP 400, 422; 404 | the server refused the request; no such model or address: check the model, the server, the protocol |
+| HTTP 413 | the request is too large: a smaller picture |
+| HTTP 429; 5xx | the server is busy; the server fails: try again later |
+| unreachable; timeout | check the server and the network; no answer in time: try again or raise `--timeout` |
+| a diagram the notation cannot show | change it by hand or draw it anew |
+
 ## Code layout
 
 | File | Content |
@@ -377,6 +428,7 @@ issues and the changes for the editor. The details are in `API.md`.
 | `hsm_maker/reader.py` | a `CyberiadaML.Document` to the notation tree with the element ids and the notes |
 | `hsm_maker/patcher.py` | the difference of two trees applied to a document, the change list |
 | `hsm_maker/maker.py` | `convert`, `change` (one notation to a document) and `run` (the loop) |
+| `hsm_maker/report.py` | the messages of a run: the progress, the dialog, the failure and its hint |
 | `hsm_maker/cli.py` | the command `hsm-maker` |
 | `hsm_maker/plugin.py` | the installation of the editor plugin |
 | `hsm_maker/prompts/` | the texts of the languages |
@@ -423,7 +475,8 @@ hsm_maker`, no adapter. Its README is for the users of the editor.
 | `notation` - Show the notation | `log` | `-m hsm_maker --render ${input}` |
 
 The model options come from the persistent parameters (Settings...):
-model, server, protocol, language, code language, rounds and the key (`env:NAME` or
+model, server, protocol, language, code language, rounds, Verbose (`-v`: the
+dialog in the output tab) and the key (`env:NAME` or
 `file:PATH`, exported to the run as `HSM_MAKER_API_KEY`, never in the
 command line; empty for a local server). The description and the change are asked at every run
 with an optional picture (`type: file`, PNG, JPEG, GIF, WebP); the
@@ -557,6 +610,15 @@ statechart is transcribed as far as its picture is legible: overlapping
 labels and crossing routes lose what they hide, and a dense picture costs
 many output tokens of reasoning.
 
+The message runs of 2026-10-31, `deepseek-flash`: a wrong key ended with
+the HTTP 401 of the server and the key hint; a wrong model name with the
+HTTP 400 that lists the model names and the hint to check the model; a
+wrong server path with the 404 hint; a request built to break the rules,
+with `--rounds 1`, with its three issues, each quoting its line of the
+answer, and the rounds hint. In the editor the plugin with Show the dialog
+put the dialog into the output tab; with a wrong key its hint was the last
+line before the editor's own failure message.
+
 ## Reuse
 
 | Need | Existing tool |
@@ -585,6 +647,10 @@ many output tokens of reasoning.
   long one, may cover a route, a label or another vertex (`libcyberiadaml`
   size estimate, `libhtreegeom` P10, and their ports in
   `cyberiadaml-py`).
+* The editor drops the diagnostics of a failed run: the remaining issues
+  and the hint are in the output tab only. A session of the editor (its
+  dialog mode: a status, questions, live findings) cannot return a
+  document yet, so the plugin runs once per action.
 * A picture: the checks prove the form of the diagram, not its likeness to
   the picture; the picture is sent again in every round of repair; no SVG,
   no scaling - a server limits the size (5 MB an image on the `messages`
