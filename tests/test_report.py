@@ -171,3 +171,23 @@ def test_explain():
     assert errors.getvalue().splitlines() == [
         'hsm-maker: HTTP 402 from x: Insufficient Balance',
         hint('hint_balance', ru)]
+
+
+def test_placement_lines():
+    from hsm_maker.client import Reply, Usage
+    from hsm_maker.placement import Placement
+    messages, errors = io.StringIO(), io.StringIO()
+    report = R.Report(EN, messages, R.DIALOG, 'model-1', 3, errors)
+    report.trace(None, EN.system, [
+        {'role': 'user', 'content': 'draw', 'images': [IMAGE]},
+        {'role': 'assistant', 'content': 'the diagram'},
+        {'role': 'user', 'content': 'where are the elements'}])
+    report.log(None, Reply('{"1": [0, 0, 9, 9]}', Usage(1, 7, 3)),
+               Placement(6, 7))
+    lines = messages.getvalue().splitlines()
+    assert lines[0] == 'placement: asking model-1 where the elements are ' \
+        'in the picture...'
+    assert '== placement' in lines and 'where are the elements' in lines
+    assert 'draw' not in lines
+    assert lines[-1].startswith('placement: 6 of 7 elements placed as in '
+                                'the picture (7 / 3 tokens, ')

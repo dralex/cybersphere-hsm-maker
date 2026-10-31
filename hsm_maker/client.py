@@ -29,6 +29,7 @@ import json
 import os
 import re
 import socket
+import struct
 import time
 import urllib.error
 import urllib.parse
@@ -65,6 +66,27 @@ WEBP_OFFSET = len(RIFF_MAGIC) + 4
 MEBIBYTE = 1024 * 1024
 MAX_IMAGE = 20 * MEBIBYTE
 SVG_HEAD = 1024
+# the headers that carry the size of a picture
+PNG_SIZE = struct.Struct('>II')
+PNG_SIZE_AT = 16
+GIF_SIZE = struct.Struct('<HH')
+GIF_SIZE_AT = 6
+JPEG_MARKER = 0xFF
+# the start-of-frame markers; C4, C8 and CC are tables, not frames
+JPEG_FRAMES = set(range(0xC0, 0xD0)) - {0xC4, 0xC8, 0xCC}
+JPEG_STANDALONE = set(range(0xD0, 0xDA)) | {0x01}
+JPEG_LENGTH = struct.Struct('>H')
+JPEG_FRAME_SIZE = struct.Struct('>xHH')    # precision, height, width
+WEBP_CHUNK_AT = 12
+WEBP_DATA_AT = 20
+VP8_SIZE = struct.Struct('<HH')
+VP8_SIZE_AT = WEBP_DATA_AT + 6
+VP8_DIMENSION = 0x3FFF
+VP8L_BITS_AT = WEBP_DATA_AT + 1
+VP8L_BITS = struct.Struct('<I')
+VP8L_DIMENSION_BITS = 14
+VP8X_SIZE_AT = WEBP_DATA_AT + 4
+VP8X_DIMENSION = 3
 SVG_RE = re.compile(rb'<svg[\s>]', re.I)
 
 # the kinds of a ClientError
@@ -150,6 +172,59 @@ def image_type(data):
     if data.startswith(RIFF_MAGIC) and \
             data[WEBP_OFFSET:WEBP_OFFSET + len(WEBP_MAGIC)] == WEBP_MAGIC:
         return WEBP
+    return None
+
+
+def _jpeg_size(data):
+    at = 2
+    while at + 4 <= len(data):
+        if data[at] != JPEG_MARKER:
+            return None
+        marker = data[at + 1]
+        if marker in JPEG_STANDALONE:
+            at += 2
+            continue
+        if marker in JPEG_FRAMES and at + 9 <= len(data):
+            height, width = JPEG_FRAME_SIZE.unpack_from(data, at + 4)
+            return width, height
+        at += 2 + JPEG_LENGTH.unpack_from(data, at + 2)[0]
+    return None
+
+
+def _webp_size(data):
+    chunk = data[WEBP_CHUNK_AT:WEBP_CHUNK_AT + 4]
+    if chunk == b'VP8 ' and len(data) >= VP8_SIZE_AT + VP8_SIZE.size:
+        width, height = VP8_SIZE.unpack_from(data, VP8_SIZE_AT)
+        return width & VP8_DIMENSION, height & VP8_DIMENSION
+    if chunk == b'VP8L' and len(data) >= VP8L_BITS_AT + VP8L_BITS.size:
+        bits = VP8L_BITS.unpack_from(data, VP8L_BITS_AT)[0]
+        mask = (1 << VP8L_DIMENSION_BITS) - 1
+        return (bits & mask) + 1, ((bits >> VP8L_DIMENSION_BITS) & mask) + 1
+    if chunk == b'VP8X' and len(data) >= VP8X_SIZE_AT + 2 * VP8X_DIMENSION:
+        width = int.from_bytes(data[VP8X_SIZE_AT:VP8X_SIZE_AT +
+                                    VP8X_DIMENSION], 'little') + 1
+        height = int.from_bytes(data[VP8X_SIZE_AT + VP8X_DIMENSION:
+                                     VP8X_SIZE_AT + 2 * VP8X_DIMENSION],
+                                'little') + 1
+        return width, height
+    return None
+
+
+def image_size(data):
+    """The (width, height) of a picture from its header; None when it cannot
+    be read."""
+    media_type = image_type(data)
+    try:
+        if media_type == PNG:
+            return PNG_SIZE.unpack_from(data, PNG_SIZE_AT)
+        if media_type == GIF:
+            return GIF_SIZE.unpack_from(data, GIF_SIZE_AT)
+        if media_type == JPEG:
+            return _jpeg_size(data)
+        if media_type == WEBP:
+            return _webp_size(data)
+    except struct.error:
+        return None
     return None
 
 

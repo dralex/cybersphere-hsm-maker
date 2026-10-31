@@ -29,3 +29,8 @@ Added:
   balance, the model, the server, the rounds), the dialog with the model
   by `-v` (`-vv` with the system prompt) and the Show the dialog setting
   of the plugin;
+- the placement: a diagram drawn from a picture is arranged as the picture
+  by one more request and the arrange layout of libhtreegeom 1.3
+  (`--geometry picture`, the default with `--picture`; `--picture-size`;
+  the Layout and Picture size options of the plugin); a failed placement
+  keeps the full layout with a warning;

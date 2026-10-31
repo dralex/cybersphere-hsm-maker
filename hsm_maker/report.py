@@ -111,13 +111,18 @@ class Report:
         self._say(text, self.errors)
 
     def trace(self, number, system, messages):
-        """Before a request: the progress, and the messages sent."""
+        """Before a request: the progress, and the messages sent; the number
+        None is the placement round."""
         self.started = time.monotonic()
-        self._say(self.texts.text('progress_ask', number=number,
-                                  rounds=self.rounds, model=self.model))
+        if number is None:
+            self._say(self.texts.text('progress_placing', model=self.model))
+        else:
+            self._say(self.texts.text('progress_ask', number=number,
+                                      rounds=self.rounds, model=self.model))
         if self.verbosity < DIALOG:
             return
-        self._say('== round {} of {}'.format(number, self.rounds))
+        self._say('== placement' if number is None else
+                  '== round {} of {}'.format(number, self.rounds))
         if not self.system_shown:
             self.system_shown = True
             about = self.texts.text('dialog_system',
@@ -128,8 +133,9 @@ class Report:
             self._say('-- system: ' + about)
             if self.verbosity >= SYSTEM:
                 self._say(system.rstrip('\n'))
-        if number > 1:
-            # a repair round repeats the request and the last answer
+        if number is None or number > 1:
+            # a repair round and the placement repeat the request and the
+            # last answer
             self._say('-- ' + self.texts.text('dialog_again'))
             messages = messages[-1:]
         for message in messages:
@@ -142,7 +148,8 @@ class Report:
                     size=math.ceil(len(image.data) / KIBIBYTE)))
 
     def log(self, number, reply, conversion):
-        """After an answer: the answer, its issues, the progress."""
+        """After an answer: the answer, its issues, the progress; the number
+        None is the placement round, its conversion a Placement."""
         seconds = 0 if self.started is None else \
             round(time.monotonic() - self.started)
         spent = {'number': number, 'input': reply.usage.input_tokens,
@@ -153,11 +160,17 @@ class Report:
                 about += ', ' + self.texts.text('dialog_cut')
             self._say('-- assistant ({}):'.format(about))
             self._say(reply.text.rstrip('\n'))
-            if conversion is not None and \
+            if number is not None and conversion is not None and \
                     (conversion.errors or conversion.warnings):
                 self._say('-- issues:')
                 for issue in conversion.errors + conversion.warnings:
                     self._say(quoted(self.texts, issue, conversion.notation))
+        if number is None:
+            if conversion.error is None:
+                self._say(self.texts.text('progress_placed',
+                                          placed=conversion.placed,
+                                          total=conversion.total, **spent))
+            return
         if conversion is None:
             key = 'progress_blind'
         elif conversion.ok:
@@ -177,6 +190,10 @@ class Report:
         if result.ok:
             for issue in result.warnings:
                 self._say(quoted(self.texts, issue, result.notation))
+            placed = getattr(result, 'placement', None)
+            if placed is not None and placed.error is not None:
+                self._say(self.texts.text('warning', text=self.texts.text(
+                    'placement_failed', reason=placed.error)))
         self._say('rounds: {}, {}'.format(result.rounds, result.usage))
         if result.ok:
             return

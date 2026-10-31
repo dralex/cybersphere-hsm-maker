@@ -1,6 +1,6 @@
 # The Cybersphere HSM Maker Architecture
 
-Document version: 0.8 (2026-10-31)
+Document version: 0.9 (2026-10-31)
 
 The maker turns a description of a system written in a natural language
 into a Hierarchical State Machine (HSM) diagram stored in the
@@ -62,6 +62,7 @@ of `cyberiadaml-py` (`cyberiadaml_py.cml`, the same names and results,
 | R11 | Declare the programming language of the actions: the model's choice or the user's. | The code language |
 | R12 | Make or change a diagram by a raster picture of a statechart or of another schema with a short comment. | The pictures |
 | R13 | Tell the user what a run does and, when it fails, why and what to do; show the dialog with the model on demand. | The messages |
+| R14 | Draw a diagram made from a picture like the picture: its states and comments arranged as there. | The placement |
 
 ## The notation
 
@@ -152,6 +153,7 @@ is saved:
 | `full` (default) | `reconstruct_geometry` - the layered layout of `libhtreegeom` 1.1 (containment, flow from the initial to the finals, few crossings, routed transitions, label places from the text sizes); the meta parameter `geometry/ full` |
 | `none` | no layout; the meta parameter `geometry/ none` - for the programs that read the structure only (`hsm-dispatcher-py`, the code generators) |
 | `update` (default of `--update`) | `update_geometry` - the drawn elements keep their places, the new ones are laid out around them (`libhtreegeom` 1.2); a diagram without geometry gets the full layout |
+| `picture` (default of `--picture`) | `arrange_geometry` - the full layered layout arranged as the picture: the places of the elements in the picture are the seed (The placement, `libhtreegeom` 1.3); without a picture it is `full` |
 
 The order of the lines in the notation is the initial order of the
 vertices inside each layer of the layout, so a diagram written in the
@@ -282,6 +284,54 @@ The answer is the notation, checked like any other.
   diagram; the notation of the original goes with it as usual.
 * **Language.** An empty comment leaves the language to the editor's
   interface language, else English.
+
+## The placement
+
+A diagram drawn from a picture should look like it. Once the diagram is
+accepted, one more request - the placement round - asks the model where
+every element is in the picture; the boxes it answers are the seed of the
+arrange layout of `libhtreegeom` 1.3, which keeps the arrangement of the
+seed and computes the rest as the full layout does.
+
+```
+ the rounds (unchanged) --> the accepted diagram, laid out in full
+                              |  the fallback, and the sizes that fit the texts
+                              v
+ the placement round: [the request with the picture, the accepted answer,
+   "N kind path" for every element of the read-back tree, the picture size]
+   (the same conversation prefix: the server's cache holds the picture)
+                              |
+ model --> {"N": [left, top, right, bottom], ...}  in the picture's pixels
+                              |
+ placement.parse: the boxes clamped, unknown numbers and bad boxes dropped
+ placement.apply: a build without geometry, LegacyYED (absolute) rects:
+   the boxes scaled - fit: under the sizes of the texts; picture: so that
+   most texts fit - the marks (initial, final, points) at their centres
+                              |
+ Document.arrange_geometry: the bands, the order in a layer and the flow
+   direction of the seed kept; the places, the routes with their labels,
+   the comments of the full layout; the seed rects as the minimum sizes
+                              |
+ Qt --> encode --> strict verify --> the result
+ any failure (no box, a server error, the request limit, a rejected
+ document): the full layout stays, with a warning
+```
+
+* **What the picture gives.** The arrangement, not the coordinates: which
+  state is left of, above or in which band of another, the direction of
+  each container's flow. The boxes of the model are rough (The records);
+  their order is not.
+* **Sizes.** `--picture-size fit` (default) scales the boxes below the
+  sizes of the texts, so the layout sizes every element by its text;
+  `picture` scales them so that three quarters of the states fit their
+  texts, and keeps the larger proportions of the picture as minimums.
+* **Elements.** The machines (their frames), the states, the pseudostates,
+  the points and the comments; the transitions and their labels are routed
+  by the layout. An element without a box is laid in by the flow.
+* **Cost.** One request more: the picture again (the prefix cache of the
+  server makes it cheap), the list of the elements, a short answer.
+* **Change.** A change keeps its drawing (`update`): the placement is for a
+  new diagram only.
 
 ## The languages
 
@@ -429,6 +479,7 @@ itself is shown as it was sent, a picture as its name, type and size.
 | `hsm_maker/patcher.py` | the difference of two trees applied to a document, the change list |
 | `hsm_maker/maker.py` | `convert`, `change` (one notation to a document) and `run` (the loop) |
 | `hsm_maker/report.py` | the messages of a run: the progress, the dialog, the failure and its hint |
+| `hsm_maker/placement.py` | the placement round: the elements, the request, the boxes, the seed of the arrange |
 | `hsm_maker/cli.py` | the command `hsm-maker` |
 | `hsm_maker/plugin.py` | the installation of the editor plugin |
 | `hsm_maker/prompts/` | the texts of the languages |
@@ -470,18 +521,20 @@ hsm_maker`, no adapter. Its README is for the users of the editor.
 
 | Action | Result | The command after `python3` |
 |---|---|---|
-| `draw` - Draw a new diagram... | `new-document` | `-m hsm_maker -f ${param-file:prompt} [--picture ${param:picture}] -o ${output} --diagnostics ${diagnostics}` + the model options |
+| `draw` - Draw a new diagram... | `new-document` | `-m hsm_maker -f ${param-file:prompt} [--picture ${param:picture}] --geometry ${param:draw_layout} --picture-size ${param:picture_size} -o ${output} --diagnostics ${diagnostics}` + the model options |
 | `change` - Change the diagram... | `replace` | `-m hsm_maker --update ${input} -f ${param-file:change} [--picture ${param:picture}] --geometry ${param:layout} -o ${output} --diagnostics ${diagnostics}` + the model options |
 | `notation` - Show the notation | `log` | `-m hsm_maker --render ${input}` |
 
 The model options come from the persistent parameters (Settings...):
-model, server, protocol, language, code language, rounds, Verbose (`-v`: the
+model, server, protocol, language, code language, rounds, Picture size
+(`fit` or `picture`, The placement), Verbose (`-v`: the
 dialog in the output tab) and the key (`env:NAME` or
 `file:PATH`, exported to the run as `HSM_MAKER_API_KEY`, never in the
 command line; empty for a local server). The description and the change are asked at every run
 with an optional picture (`type: file`, PNG, JPEG, GIF, WebP); the
 `--picture` argument is added only when it is given, and the text may then
-be empty. The
+be empty. Draw asks for the Layout too: `picture` (default; the placement
+round, `full` when no picture is given) or `full`. The
 `change` action keeps the identifiers of what it does not change, so the
 selection and the earlier findings still point at them; its diagnostics
 list the changes with links to the elements. The maker and the binding
@@ -511,7 +564,7 @@ where the editor looks for plugins.
 
 | Package | Contents | Needs |
 |---|---|---|
-| `python3-cybersphere-hsm-maker` (deb, `all`) | the package in `/usr/lib/python3/dist-packages`, `/usr/bin/hsm-maker`, the plugin in `/usr/share/cyberiada-pro/plugins/hsm-maker/`, the documents | `python3 (>= 3.8)`, `python3-libcyberiadamlpp (>= 1.0.8)` or `python3-cyberiadaml (>= 1.8.0)`; enhances `cyberiada-pro` |
+| `python3-cybersphere-hsm-maker` (deb, `all`) | the package in `/usr/lib/python3/dist-packages`, `/usr/bin/hsm-maker`, the plugin in `/usr/share/cyberiada-pro/plugins/hsm-maker/`, the documents | `python3 (>= 3.8)`, `python3-libcyberiadamlpp (>= 1.1.0)` or `python3-cyberiadaml (>= 1.8.0)` (the arrange layout); enhances `cyberiada-pro` |
 | `cybersphere-hsm-maker` (wheel) | the package, `hsm-maker`, the plugin as data files under the install prefix | `cyberiadaml-py` 1.8+ (a dependency on Python 3.8.1+, on Windows from Python 3.10), or the `CyberiadaML` binding installed apart |
 
 * The deb plugin keeps the logical interpreter `python3`: the system Python
@@ -651,6 +704,11 @@ line before the editor's own failure message.
   and the hint are in the output tab only. A session of the editor (its
   dialog mode: a status, questions, live findings) cannot return a
   document yet, so the plugin runs once per action.
+* The placement: the model's boxes are rough, so a drawing from a picture
+  keeps its arrangement, not its coordinates; the transitions are routed by
+  the layout, not as drawn; on the `cml` backend a document whose comments
+  take part may be laid out otherwise than by the binding (the comment
+  layout of `libhtreegeom` 1.3 is not ported to `cyberiadaml-py` yet).
 * A picture: the checks prove the form of the diagram, not its likeness to
   the picture; the picture is sent again in every round of repair; no SVG,
   no scaling - a server limits the size (5 MB an image on the `messages`
@@ -665,3 +723,5 @@ line before the editor's own failure message.
 3. A review step for the design of the diagram, not only its form.
 4. Layout hints of the notation (the direction) passed to the layout.
 5. A component of `cybersphere-agents`: the specifications as diagrams.
+6. The placement: the routes and the label places of the transitions from
+   the picture; the new elements of a change by a picture placed as there.

@@ -176,3 +176,44 @@ def test_no_picture(stub, tmp_path, capsys):
                      '-o', str(out), 'a lift']) == cli.EXIT_NOT_MADE
     assert 'the model does not see the picture' in capsys.readouterr().err
     assert not out.exists()
+
+
+def test_picture_layout(stub, tmp_path, capsys):
+    from test_placement import HEIGHT, WIDTH, _lift, _truth
+    from conftest import png
+    from hsm_maker import placement
+    picture = tmp_path / 'lift.png'
+    picture.write_bytes(png(WIDTH, HEIGHT))
+    listed = placement.items(_lift(), Texts('en'))
+    stub.answer(chat_answer(fenced(diagram('lift.hsm'))))
+    stub.answer(chat_answer(_truth(_lift(), listed)))
+    out = tmp_path / 'lift.graphml'
+    assert cli.main(['--url', stub.url, '--model', 'm', '--picture',
+                     str(picture), '-o', str(out), 'a lift']) == cli.EXIT_MADE
+    messages = capsys.readouterr().out
+    assert 'placement: asking m where the elements are' in messages
+    assert 'placement: 7 of 7 elements placed as in the picture' in messages
+    assert 'rounds: 1, requests: 2' in messages
+    assert validate(str(out)) in (None, [])
+
+
+def test_picture_layout_refused_and_fallback(stub, tmp_path, capsys):
+    picture, _ = picture_files(tmp_path)
+    original = tmp_path / 'lift.graphml'
+    assert cli.main(['--notation', LIFT, '-o', str(original)]) == cli.EXIT_MADE
+    capsys.readouterr()
+    assert cli.main(['--url', stub.url, '--model', 'm', '--update',
+                     str(original), '--geometry', 'picture', 'x']) == \
+        cli.EXIT_USAGE
+    assert '--geometry picture draws a new diagram' in capsys.readouterr().err
+    # a picture without a readable size keeps the full layout, with a warning
+    stub.answer(chat_answer(fenced(diagram('lift.hsm'))))
+    report = tmp_path / 'diagnostics.json'
+    assert cli.main(['--url', stub.url, '--model', 'm', '--picture', picture,
+                     '-o', str(tmp_path / 'out.graphml'), '--diagnostics',
+                     str(report), 'a lift']) == cli.EXIT_MADE
+    assert 'warning: the diagram keeps the library\'s layout' in \
+        capsys.readouterr().out
+    entries = __import__('json').loads(report.read_text(encoding='utf-8'))
+    assert [e['rule'] for e in entries if e['severity'] == 'warning'] == \
+        ['placement']

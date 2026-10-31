@@ -30,7 +30,7 @@ import sys
 import pytest
 
 from hsm_maker.cyberiadaml import CyberiadaML
-from conftest import PNG, ROOT, chat_answer, diagram, fenced
+from conftest import ROOT, chat_answer, diagram, fenced, png
 from hsm_maker import __version__, cli
 from hsm_maker import maker as M
 from hsm_maker import plugin as P
@@ -87,6 +87,12 @@ def test_descriptor():
     assert parameters['picture']['type'] == 'file'
     assert (parameters['verbose']['type'], parameters['verbose']['default']) \
         == ('bool', False)
+    assert (parameters['draw_layout']['choices'],
+            parameters['draw_layout']['default']) == (['picture', 'full'],
+                                                      'picture')
+    assert parameters['picture_size']['scope'] == 'persistent'
+    draw = [a for a in plugin['actions'] if a['id'] == 'draw'][0]
+    assert '--geometry' in draw['argv'] and '--picture-size' in draw['argv']
     for action in plugin['actions']:
         assert action['result'] in RESULTS
         assert set(action['parameters']) <= set(parameters)
@@ -178,9 +184,14 @@ def test_draw_and_change(stub, tmp_path):
 
 
 def test_draw_by_picture(stub, tmp_path):
+    from test_placement import HEIGHT, WIDTH, _lift, _truth
+    from hsm_maker import placement
+    from hsm_maker.language import Texts
     picture = tmp_path / 'lift.png'
-    picture.write_bytes(PNG)
+    picture.write_bytes(png(WIDTH, HEIGHT))
     stub.answer(chat_answer(fenced(diagram('lift.hsm'))))
+    stub.answer(chat_answer(_truth(_lift(), placement.items(_lift(),
+                                                            Texts('en')))))
     drawn = tmp_path / 'lift.graphml'
     run = editor(['--run-plugin', 'hsm-maker:draw', '--plugin-param',
                   'picture=' + str(picture), '--plugin-param',
@@ -189,6 +200,9 @@ def test_draw_by_picture(stub, tmp_path):
     assert run.returncode == 0, run.stdout + run.stderr
     assert '[picture lift.png, image/png, 1 KiB]' in run.stdout
     assert 'round 1: the diagram is accepted' in run.stdout
+    assert '== placement' in run.stdout
+    assert 'placement: 7 of 7 elements placed as in the picture' in \
+        run.stdout
     content = stub.requests[0][2]['messages'][1]['content']
     assert [part['type'] for part in content] == ['image_url', 'text']
     assert 'Lift' in drawn.read_text(encoding='utf-8')

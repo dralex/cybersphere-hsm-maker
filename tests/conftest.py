@@ -23,6 +23,7 @@
 import http.server
 import json
 import os
+import struct
 import subprocess
 import sys
 import threading
@@ -155,6 +156,12 @@ def clean_environment(monkeypatch):
 
 # a picture as the servers see it: the stubs need its first bytes only
 PNG = b'\x89PNG\r\n\x1a\n' + bytes(8)
+
+
+def png(width, height):
+    """The first bytes of a PNG of the size: the signature and the IHDR."""
+    return PNG[:8] + struct.pack('>I', 13) + b'IHDR' + \
+        struct.pack('>II', width, height) + bytes(5)
 
 
 class FakeClient:

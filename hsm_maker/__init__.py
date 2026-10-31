@@ -31,10 +31,12 @@ from .language import AUTO
 from .maker import (ROUNDS, Conversion, Result, change, convert, run,
                     run_update)
 from .notation import Issue
+from .placement import GEOMETRY_PICTURE, SIZE_FIT, SIZE_PICTURE
 from .patcher import Change
 from .reader import ReadError
 
-__all__ = ['GEOMETRY_FULL', 'GEOMETRY_NONE', 'GEOMETRY_UPDATE', 'AUTO',
+__all__ = ['GEOMETRY_FULL', 'GEOMETRY_NONE', 'GEOMETRY_UPDATE',
+           'GEOMETRY_PICTURE', 'SIZE_FIT', 'SIZE_PICTURE', 'AUTO',
            'ROUNDS', 'Client', 'ClientError', 'ConfigError',
            'RequestLimitError', 'Usage', 'Image', 'Conversion', 'Result',
            'Change', 'Issue', 'ReadError', 'convert', 'change', 'run',
@@ -44,14 +46,15 @@ __all__ = ['GEOMETRY_FULL', 'GEOMETRY_NONE', 'GEOMETRY_UPDATE', 'AUTO',
 def make(prompt, client=None, *, protocol=None, url=None, model=None,
          key=None, key_env=None, language=AUTO, code_language=AUTO,
          geometry=GEOMETRY_FULL, rounds=ROUNDS, max_requests=None,
-         timeout=None, log=None, pictures=(), trace=None):
+         timeout=None, log=None, pictures=(), trace=None,
+         size=SIZE_FIT):
     """Make a diagram from the description `prompt`, the comment to the
     pictures when there are any; return a Result."""
     if client is None:
         client = from_environment(protocol, url, model, key, key_env,
                                   max_requests=max_requests, timeout=timeout)
     return run(prompt, client, language, geometry, rounds, log,
-               code_language, pictures, trace)
+               code_language, pictures, trace, size)
 
 
 def update(graphml, prompt, client=None, *, protocol=None, url=None,

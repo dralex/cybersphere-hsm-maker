@@ -123,5 +123,13 @@
  "hint_timeout": "the model did not answer in time: try again, or raise --timeout for a slow model.",
  "hint_answer": "the server did not answer as a model server: check Server and Protocol.",
  "hint_read": "the diagram has a part the notation cannot show: change it by hand or draw a new diagram.",
+ "placement_request": "Now find every element of the diagram you wrote in the attached picture. The picture is {width} x {height} pixels, (0, 0) is its top-left corner. For each element of the list give its box [left, top, right, bottom] in pixels of the picture; for a mark (an initial, a final, a choice, a history, a point) the box around the mark. Leave out an element you do not see. Answer with one JSON object in a ```json block: {{\"1\": [left, top, right, bottom], ...}}.\n\n{elements}",
+ "placement_frame": "{number} machine {name} (its frame)",
+ "placement_initial": "{number} initial in {container}",
+ "placement_vertex": "{number} {kind} {path}",
+ "placement_comment": "{number} comment {name}",
+ "progress_placing": "placement: asking {model} where the elements are in the picture...",
+ "progress_placed": "placement: {placed} of {total} elements placed as in the picture ({input} / {output} tokens, {seconds} s)",
+ "placement_failed": "the diagram keeps the library's layout: the placement from the picture failed ({reason})",
  "warning": "warning: {text}"
 }

@@ -37,6 +37,18 @@
       "description": "Optional: a picture of the system or of the change (PNG, JPEG, GIF, WebP); the text is then its comment"
     },
     {
+      "id": "draw_layout",
+      "type": "enum",
+      "label": "Layout",
+      "scope": "run",
+      "choices": [
+        "picture",
+        "full"
+      ],
+      "default": "picture",
+      "description": "picture: the elements arranged as in the picture (one more request); full: the library's own layout"
+    },
+    {
       "id": "layout",
       "type": "enum",
       "label": "Layout",
@@ -125,6 +137,18 @@
       "description": "How many times the model may correct its answer"
     },
     {
+      "id": "picture_size",
+      "type": "enum",
+      "label": "Picture size",
+      "scope": "persistent",
+      "choices": [
+        "fit",
+        "picture"
+      ],
+      "default": "fit",
+      "description": "The sizes of a diagram arranged as its picture: fit - from the texts; picture - at least the proportions of the picture"
+    },
+    {
       "id": "verbose",
       "type": "bool",
       "label": "Show the dialog",
@@ -147,6 +171,7 @@
       "parameters": [
         "prompt",
         "picture",
+        "draw_layout",
         "model",
         "url",
         "protocol",
@@ -154,6 +179,7 @@
         "language",
         "code_language",
         "rounds",
+        "picture_size",
         "verbose"
       ],
       "description": "A new diagram from a description or a picture",
@@ -169,6 +195,10 @@
             "${param:picture}"
           ]
         },
+        "--geometry",
+        "${param:draw_layout}",
+        "--picture-size",
+        "${param:picture_size}",
         "-o",
         "${output}",
         "--diagnostics",

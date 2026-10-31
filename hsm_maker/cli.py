@@ -34,6 +34,7 @@ from .client import (ClientError, ConfigError, PROTOCOLS, from_environment,
 from .language import AUTO, Texts, choose, languages
 from .maker import ROUNDS, Original, change, convert, run, run_update
 from .notation import ERROR, WARNING
+from .placement import GEOMETRY_PICTURE, SIZES, SIZE_FIT
 from .plugin import PLUGIN_ID, PluginError, install
 from .reader import ReadError
 from .report import PROGRAM, Report
@@ -81,10 +82,16 @@ def parser():
     commands.add_argument('--diagnostics', metavar='FILE',
                           help='write the issues and the changes as the '
                           'editor diagnostics JSON')
-    commands.add_argument('--geometry', choices=CHANGE_GEOMETRIES,
+    commands.add_argument('--geometry',
+                          choices=CHANGE_GEOMETRIES + (GEOMETRY_PICTURE,),
                           help='full: lay the diagram out, update: keep the '
-                          'drawing, none: no geometry (full; update with '
-                          '--update)')
+                          'drawing, none: no geometry, picture: arrange a '
+                          'new diagram as its picture (full; update with '
+                          '--update; picture with --picture)')
+    commands.add_argument('--picture-size', choices=SIZES, default=SIZE_FIT,
+                          help='the sizes of the picture layout: fit - from '
+                          'the texts, picture - at least the picture\'s '
+                          'proportions ({})'.format(SIZE_FIT))
     commands.add_argument('--language', choices=[AUTO] + languages(),
                           help='the language of the instructions '
                           '(${}, auto)'.format(ENV_LANGUAGE))
@@ -169,6 +176,11 @@ def _diagnostics(path, texts, outcome):
         if item.element:
             entry['element'] = item.element
         entries.append(entry)
+    placed = getattr(outcome, 'placement', None)
+    if placed is not None and placed.error is not None:
+        entries.append({'severity': WARNING, 'rule': 'placement',
+                        'message': texts.text('placement_failed',
+                                              reason=placed.error)})
     with open(path, 'w', encoding='utf-8') as target:
         json.dump(entries, target, ensure_ascii=False, indent=1)
 
@@ -247,7 +259,11 @@ def main(argv=None):
         graphml = _original(options)
         if options.geometry is None:
             options.geometry = GEOMETRY_UPDATE if graphml is not None \
-                else GEOMETRY_FULL
+                else GEOMETRY_PICTURE if options.pictures else GEOMETRY_FULL
+        if options.geometry == GEOMETRY_PICTURE and \
+                (graphml is not None or options.notation):
+            raise ConfigError('--geometry picture draws a new diagram by a '
+                              'model: not with --update or --notation')
         if options.notation:
             return _offline(options, language, graphml)
         prompt = _prompt(options)
@@ -265,7 +281,7 @@ def main(argv=None):
         if graphml is None:
             result = run(prompt, client, language, options.geometry,
                          options.rounds, report.log, options.code_language,
-                         pictures, report.trace)
+                         pictures, report.trace, options.picture_size)
         else:
             result = run_update(graphml, prompt, client, language,
                                 options.geometry, options.rounds, report.log,

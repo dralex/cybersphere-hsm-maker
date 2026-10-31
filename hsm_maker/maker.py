@@ -24,9 +24,11 @@
 document is made: the acceptance is a fact of the checks, never the word of
 the model."""
 
-from .builder import (BuildError, GEOMETRY_FULL, GEOMETRY_UPDATE, build,
-                      encode, verify)
-from .client import Image, RequestLimitError, Usage, load_picture
+from . import placement
+from .builder import (BINDING_ERRORS, BuildError, GEOMETRY_FULL,
+                      GEOMETRY_UPDATE, build, encode, verify)
+from .client import (ClientError, Image, RequestLimitError, Usage, image_size,
+                     load_picture)
 from .language import AUTO, Texts, choose
 from .notation import (ERROR, NotationError, WARNING, analyze, extract,
                        language_spelling, parse, render)
@@ -38,6 +40,9 @@ ACCEPTED = 'accepted'
 ROUNDS_SPENT = 'rounds'
 REQUEST_LIMIT = 'request-limit'
 NO_PICTURE = 'no-picture'
+# a failed placement keeps the full layout
+PLACEMENT_ERRORS = (placement.PlacementError, ClientError, BuildError,
+                    NotationError) + BINDING_ERRORS
 # the answer of a model that does not see the picture
 NO_PICTURE_ANSWER = 'NO PICTURE'
 
@@ -63,7 +68,7 @@ class Result:
     """The outcome of a run."""
 
     def __init__(self, conversion, rounds, usage, language, reason,
-                 truncated=False):
+                 truncated=False, answer=None):
         self.ok = conversion is not None and conversion.ok
         self.graphml = conversion.graphml if conversion else None
         self.document = conversion.document if conversion else None
@@ -76,6 +81,8 @@ class Result:
         self.language = language
         self.reason = reason
         self.truncated = truncated
+        self.answer = answer
+        self.placement = None
 
 
 def _chosen(code_language):
@@ -197,20 +204,68 @@ def _blind(reply):
 
 
 def run(prompt, client, language=AUTO, geometry=GEOMETRY_FULL,
-        rounds=ROUNDS, log=None, code_language=AUTO, pictures=(), trace=None):
+        rounds=ROUNDS, log=None, code_language=AUTO, pictures=(), trace=None,
+        size=placement.SIZE_FIT):
     """Ask the model until the diagram is made, at most `rounds` times.
     `trace(number, system, messages)` is called before every request,
     `log(number, reply, conversion)` after every answer; the prompt is the
-    comment to the pictures when there are any."""
+    comment to the pictures when there are any. The geometry 'picture'
+    arranges the diagram as the first picture by the placement round."""
     images = _images_of(pictures)
+    before = Usage(client.usage.requests, client.usage.input_tokens,
+                   client.usage.output_tokens)
     texts = Texts(choose(language, prompt))
     question = prompt
     if images:
         question = texts.text('picture_request', comment=prompt.strip()) \
             if prompt.strip() else texts.text('picture_alone')
-    return _loop(_asked(question, texts, code_language),
-                 lambda notation: convert(notation, geometry, code_language),
-                 client, texts, rounds, log, images, trace)
+    asked = _asked(question, texts, code_language)
+    placing = geometry == placement.GEOMETRY_PICTURE
+    if placing:
+        geometry = GEOMETRY_FULL
+    result = _loop(asked,
+                   lambda notation: convert(notation, geometry, code_language),
+                   client, texts, rounds, log, images, trace)
+    if placing and images and result.ok:
+        _place(result, asked, images, client, texts, code_language, size,
+               log, trace)
+        result.usage = _spent(client, before)
+    return result
+
+
+def _place(result, asked, images, client, texts, code_language, size, log,
+           trace):
+    """The placement round: the accepted diagram arranged as the first
+    picture; any failure keeps the full layout with its reason."""
+    listed = []
+    reply = None
+    try:
+        dimensions = image_size(images[0].data)
+        if dimensions is None:
+            raise placement.PlacementError('the size of the picture cannot '
+                                           'be read')
+        listed = placement.items(result.document, texts)
+        # the first message as in the rounds: the server's cache holds it
+        messages = [{'role': 'user', 'content': asked, 'images': list(images)},
+                    {'role': 'assistant', 'content': result.answer},
+                    {'role': 'user',
+                     'content': placement.request(texts, listed,
+                                                  *dimensions)}]
+        if trace is not None:
+            trace(None, texts.system, messages)
+        reply = client.complete(texts.system, messages)
+        boxes = placement.parse(reply.text, listed, *dimensions)
+        diagram = parse(result.notation)
+        diagram.language = _chosen(code_language) or diagram.language
+        analyze(diagram)
+        result.document, result.graphml = placement.apply(
+            diagram, result.graphml, boxes, listed, size)
+        result.placement = placement.Placement(len(boxes), len(listed))
+    except PLACEMENT_ERRORS as error:
+        result.placement = placement.Placement(
+            0, len(listed), str(error) or type(error).__name__)
+    if reply is not None and log is not None:
+        log(None, reply, result.placement)
 
 
 def run_update(graphml, prompt, client, language=AUTO,
@@ -247,6 +302,7 @@ def _loop(prompt, conversion_of, client, texts, rounds, log, images=(),
     reason = ROUNDS_SPENT
     done = 0
     truncated = False
+    answer = None
     for number in range(1, rounds + 1):
         if trace is not None:
             trace(number, texts.system, messages)
@@ -257,6 +313,7 @@ def _loop(prompt, conversion_of, client, texts, rounds, log, images=(),
             break
         done = number
         truncated = reply.truncated
+        answer = reply.text
         if images and _blind(reply):
             reason = NO_PICTURE
             if log is not None:
@@ -274,4 +331,4 @@ def _loop(prompt, conversion_of, client, texts, rounds, log, images=(),
                     {'role': 'user',
                      'content': feedback(conversion, texts, reply.truncated)}]
     return Result(conversion, done, _spent(client, before), texts.language,
-                  reason, truncated)
+                  reason, truncated, answer)

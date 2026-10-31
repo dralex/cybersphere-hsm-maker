@@ -1,6 +1,6 @@
 # The Cybersphere HSM Maker Interface Specification
 
-Document version: 0.8 (2026-10-31)
+Document version: 0.9 (2026-10-31)
 
 The package `hsm_maker` and the command `hsm-maker`. The reasons are in
 `ARCHITECTURE.md`, the notation and its issue codes in `NOTATION.md`.
@@ -11,8 +11,9 @@ The package `hsm_maker` and the command `hsm-maker`. The reasons are in
 * `make(prompt, client=None, *, protocol=None, url=None, model=None,
   key=None, key_env=None, language='auto', code_language='auto',
   geometry='full', rounds=3, max_requests=None, timeout=None, log=None,
-  pictures=(), trace=None)` - make a diagram from the description `prompt`;
-  return a `Result`; `code_language`, `log`, `pictures` and `trace` as in
+  pictures=(), trace=None, size='fit')` - make a diagram from the
+  description `prompt`; return a `Result`; `code_language`, `log`,
+  `pictures`, `trace`, `geometry` (`'picture'` too) and `size` as in
   `maker.run`.
   Without `client` a `Client` is created from the arguments and the
   environment (`client.from_environment`). Raises `ConfigError` for a bad
@@ -171,6 +172,8 @@ The model servers.
 * `Image(data, media_type, name=None)` - a raster picture: the bytes, the
   media type, the file name; `base64()` - the data in base64, `data_url()`
   - `data:<media type>;base64,<data>`.
+* `image_size(data)` - `(width, height)` of a PNG, GIF, JPEG or WebP picture
+  from its header; `None` when it cannot be read.
 * `image_type(data)` - the media type of the bytes by their first bytes;
   `None` for another format.
 * `load_picture(path)` - the `Image` of a file. Raises `ConfigError` for an
@@ -187,6 +190,35 @@ The model servers.
   key_env=None, environ=os.environ, **options)` - a `Client` from the
   arguments, else `HSM_MAKER_PROTOCOL`, `HSM_MAKER_URL`, `HSM_MAKER_MODEL`,
   `HSM_MAKER_KEY_ENV`. Raises `ConfigError`.
+
+## Module placement
+
+The placement round (`ARCHITECTURE.md`, The placement).
+
+* `GEOMETRY_PICTURE` - `'picture'`: a new diagram arranged as its picture.
+* `SIZE_FIT`, `SIZE_PICTURE`, `SIZES` - `'fit'`, `'picture'`: the sizes of the
+  seed - under the texts, or the picture's proportions as minimums.
+* `PlacementError(reason)` - the placement round gives no seed.
+* `Item` - an element of the request: `number`, `element_id`, `mark` (a
+  pseudostate or a point, placed by its centre), `rect` (placed by a rect),
+  `text` (its line of the request).
+* `Placement` - the outcome: `placed`, `total`, `error` (the reason of a
+  failure, else `None`).
+* `items(document, texts)` - the numbered elements of a document: the
+  machines (their frames), the vertices in the notation order, the comments.
+* `request(texts, items, width, height)` - the text of the request.
+* `parse(answer, items, width, height)` - the boxes `{number: (left, top,
+  right, bottom)}` of an answer (its first fenced block, else the whole
+  text), clamped to the picture; unknown numbers and bad boxes dropped.
+  Raises `PlacementError` when no box is left.
+* `scale(boxes, items, needs, size)` - the factor of the boxes: `fit`, every
+  box under its need (`{element_id: (width, height)}` of the full layout);
+  `picture`, three quarters of the states fit their texts.
+* `apply(diagram, graphml, boxes, items, size)` - the analysed diagram
+  built without geometry, the scaled boxes as absolute (LegacyYED) rects
+  and points, `Document.arrange_geometry`, Qt, encoded and verified;
+  `graphml` is the full layout of the accepted round. Returns `(document,
+  text)`. Raises `BuildError` and the errors of the `CyberiadaML` module.
 
 ## Module report
 
@@ -264,7 +296,9 @@ The conversion and the repair loop.
 * `Result` - `ok`, `graphml`, `document`, `notation` (of the last round),
   `errors`, `warnings`, `changes`, `rounds`, `usage`, `language`, `reason`
   (`'accepted'`, `'rounds'`, `'request-limit'`, `'no-picture'`), `truncated`
-  (the last answer was cut by the length limit).
+  (the last answer was cut by the length limit), `answer` (the text of the
+  last answer), `placement` (the `Placement` of the placement round, else
+  `None`).
 * `convert(notation, geometry=GEOMETRY_FULL, code_language=AUTO)` - parse,
   analyse, build, encode and verify one notation; return a `Conversion`.
   A `code_language` other than `AUTO` replaces the `language:` of the
@@ -278,12 +312,18 @@ The conversion and the repair loop.
 * `feedback(conversion, texts, truncated=False)` - the message to the
   model about a rejected conversion.
 * `run(prompt, client, language=AUTO, geometry=GEOMETRY_FULL,
-  rounds=ROUNDS, log=None, code_language=AUTO, pictures=(), trace=None)` -
+  rounds=ROUNDS, log=None, code_language=AUTO, pictures=(), trace=None,
+  size=SIZE_FIT)` -
   the loop of `ARCHITECTURE.md`; return a `Result`. `trace(number, system,
   messages)` is called before every request with what is sent (a user
   message may have `images`), `log(number, reply, conversion)` after every
   answer; `conversion` is `None` for a `NO PICTURE` answer. A `code_language` other than `AUTO` is asked of
   the model and written (`ARCHITECTURE.md`, The code language).
+  `geometry='picture'` with pictures: the rounds lay the diagram out in
+  full, then the placement round arranges it as the first picture
+  (`size`: `'fit'` or `'picture'`); its `trace` and `log` have the number
+  `None` and the `log` gets the `Placement`; a failed placement keeps the
+  full layout. Without a picture `'picture'` is `'full'`.
   `pictures` - `Image` objects or file paths: the prompt becomes their
   comment and may be empty; they go with the first message of every round;
   the answer `NO PICTURE` ends the run with the reason `'no-picture'`.
@@ -302,7 +342,8 @@ The conversion and the repair loop.
     hsm-maker [PROMPT] [-f FILE] [--notation FILE] [--update FILE]
               [--render FILE] [--picture FILE]... [-o FILE]
               [--diagnostics FILE]
-              [--geometry full|update|none] [--language auto|en|ru]
+              [--geometry full|update|none|picture]
+              [--picture-size fit|picture] [--language auto|en|ru]
               [--code-language auto|NAME]
               [--save-notation FILE] [--rounds N] [--max-requests N]
               [--timeout SECONDS] [--protocol chat-completions|messages]
@@ -318,6 +359,10 @@ The conversion and the repair loop.
   change; the geometry is `update` by default. An empty file is a new
   diagram.
 * `--render FILE` prints the notation of the diagram and exits.
+* `--geometry picture` (the default with `--picture` and without `--update`)
+  arranges the new diagram as its first picture by the placement round;
+  `--picture-size fit|picture` (`fit`) the sizes of its seed. Refused with
+  `--update` and `--notation`.
 * `--picture FILE` - a raster picture of the system (PNG, JPEG, GIF, WebP),
   repeatable; the prompt is its comment and may be empty. Refused with
   `--notation` and `--render`. A model that does not see it ends the run

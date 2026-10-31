@@ -56,6 +56,14 @@ buttons.
   text is then a short comment to it and may be empty. The model must read
   images (`deepseek-flash` does); a model that does not stops the run with
   a message. Export an SVG as PNG first.
+* **Layout** (Draw, with a picture) - `picture` (the default) asks the
+  model once more where the elements are in the picture and arranges the
+  diagram as there: the same states side by side or one above another, in
+  the same order, the transitions routed anew; `full` takes the library's
+  own layout. If the placement fails, the diagram keeps the full layout and
+  the output tab says why.
+* **Picture size** (Settings) - `fit` sizes the arranged states by their
+  texts; `picture` keeps at least the proportions of the picture.
 * The settings are asked once and kept: the model (`deepseek-flash`), the
   server (`https://api.deepseek.com/v1`, any server of the
   `chat-completions` or `messages` protocol, a local one too), the key as
