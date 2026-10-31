@@ -1,9 +1,10 @@
 # The HSM Maker plugin of CyberiadaPro
 
 The plugin brings the maker into `CyberiadaPro`: draw a new diagram
-from a description, change the open diagram by a description of the
-change, or show the open diagram in the notation the model reads. The
-description and the diagram are sent to the model server you choose.
+from a description or a picture, change the open diagram by a description
+or a picture of the change, or show the open diagram in the notation the
+model reads. The description, the picture and the diagram are sent to the
+model server you choose.
 
 ## Installation
 
@@ -49,6 +50,12 @@ buttons.
   lays the whole diagram out anew. Unchanged elements keep their
   identifiers; the Diagnostics tab lists every change with a link to the
   element. Undo restores the diagram.
+* **Picture** - both dialogs take an optional picture (PNG, JPEG, GIF,
+  WebP): a drawn state machine diagram is copied, another schema (a
+  flowchart, a sketch, a photo of a whiteboard) is turned into one; the
+  text is then a short comment to it and may be empty. The model must read
+  images (`deepseek-flash` does); a model that does not stops the run with
+  a message. Export an SVG as PNG first.
 * The settings are asked once and kept: the model (`deepseek-flash`), the
   server (`https://api.deepseek.com/v1`, any server of the
   `chat-completions` or `messages` protocol, a local one too), the key as

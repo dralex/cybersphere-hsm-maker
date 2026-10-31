@@ -30,7 +30,7 @@ import sys
 import pytest
 
 from hsm_maker.cyberiadaml import CyberiadaML
-from conftest import ROOT, chat_answer, diagram, fenced
+from conftest import PNG, ROOT, chat_answer, diagram, fenced
 from hsm_maker import __version__, cli
 from hsm_maker import maker as M
 from hsm_maker import plugin as P
@@ -67,15 +67,28 @@ def descriptor():
         return json.load(source)
 
 
+def arguments(argv, parameters):
+    """The strings of an argv; a conditional element names a parameter of
+    its action."""
+    for argument in argv:
+        if isinstance(argument, dict):
+            assert set(argument) == {'if', 'argv'}, argument
+            assert argument['if'] in parameters, argument
+            yield from arguments(argument['argv'], parameters)
+        else:
+            yield argument
+
+
 def test_descriptor():
     plugin = descriptor()
     assert (plugin['api'], plugin['id']) == (1, 'hsm-maker')
     parameters = {p['id']: p for p in plugin['parameters']}
     assert parameters['key']['type'] == 'secret'
+    assert parameters['picture']['type'] == 'file'
     for action in plugin['actions']:
         assert action['result'] in RESULTS
         assert set(action['parameters']) <= set(parameters)
-        for argument in action['argv']:
+        for argument in arguments(action['argv'], action['parameters']):
             for name, param in VARIABLE_RE.findall(argument):
                 assert name in VARIABLES, argument
                 if name.startswith('param'):
@@ -160,6 +173,20 @@ def test_draw_and_change(stub, tmp_path):
     for vertex in old.tree.walk():
         if vertex.kind != 'initial':
             assert after.find_element_by_id(vertex.element_id) is not None
+
+
+def test_draw_by_picture(stub, tmp_path):
+    picture = tmp_path / 'lift.png'
+    picture.write_bytes(PNG)
+    stub.answer(chat_answer(fenced(diagram('lift.hsm'))))
+    drawn = tmp_path / 'lift.graphml'
+    run = editor(['--run-plugin', 'hsm-maker:draw', '--plugin-param',
+                  'picture=' + str(picture)] + model(stub) +
+                 ['--save', str(drawn)], tmp_path, 'k')
+    assert run.returncode == 0, run.stdout + run.stderr
+    content = stub.requests[0][2]['messages'][1]['content']
+    assert [part['type'] for part in content] == ['image_url', 'text']
+    assert 'Lift' in drawn.read_text(encoding='utf-8')
 
 
 def platform_language(path):

@@ -29,10 +29,11 @@ import sys
 
 from . import __version__
 from .builder import CHANGE_GEOMETRIES, GEOMETRY_FULL, GEOMETRY_UPDATE
-from .client import ClientError, ConfigError, PROTOCOLS, from_environment
+from .client import (ClientError, ConfigError, PROTOCOLS, from_environment,
+                     load_picture)
 from .language import AUTO, Texts, choose, languages
-from .maker import (REQUEST_LIMIT, ROUNDS, Original, change, convert, run,
-                    run_update)
+from .maker import (NO_PICTURE, REQUEST_LIMIT, ROUNDS, Original, change,
+                    convert, run, run_update)
 from .notation import ERROR, WARNING
 from .plugin import PLUGIN_ID, PluginError, install
 from .reader import ReadError
@@ -65,6 +66,11 @@ def parser():
                           'describes the change')
     commands.add_argument('--render', metavar='FILE',
                           help='print the notation of the diagram')
+    commands.add_argument('--picture', metavar='FILE', action='append',
+                          dest='pictures',
+                          help='a picture of the system: PNG, JPEG, GIF or '
+                          'WebP; the prompt is its comment and may be empty; '
+                          'repeatable')
     commands.add_argument('--install-editor-plugin', nargs='?', const='',
                           metavar='DIR',
                           help='install the editor plugin into DIR or the '
@@ -137,7 +143,7 @@ def _prompt(options):
         text = sys.stdin.read()
     else:
         text = ''
-    if not text.strip():
+    if not text.strip() and not options.pictures:
         raise ConfigError('give a description: PROMPT, -f FILE or the '
                           'standard input')
     return text
@@ -204,6 +210,9 @@ def _made(options, result):
     _diagnostics(options.diagnostics, texts, result)
     if result.reason == REQUEST_LIMIT:
         _say('{}: the request limit is reached'.format(PROGRAM))
+    if result.reason == NO_PICTURE:
+        _say('{}: the model does not see the picture: choose a model with '
+             'image input'.format(PROGRAM))
     _say('rounds: {}, {}'.format(result.rounds, result.usage))
     if not result.ok:
         return EXIT_NOT_MADE
@@ -235,6 +244,9 @@ def main(argv=None):
     try:
         if options.install_editor_plugin is not None:
             return _install_plugin(options.install_editor_plugin)
+        if options.pictures and (options.render or options.notation):
+            raise ConfigError('--picture needs the model: not with --render '
+                              'or --notation')
         if options.render:
             _write(None, Original(_read(options.render)).notation)
             return EXIT_MADE
@@ -246,6 +258,7 @@ def main(argv=None):
             return _offline(options, language, graphml)
         prompt = _prompt(options)
         choose(language, prompt)
+        pictures = [load_picture(path) for path in options.pictures or ()]
         client = from_environment(options.protocol, options.url,
                                   options.model, key_env=options.key_env,
                                   max_requests=options.max_requests,
@@ -253,11 +266,11 @@ def main(argv=None):
         log = _round if options.verbose else None
         if graphml is None:
             result = run(prompt, client, language, options.geometry,
-                         options.rounds, log, options.code_language)
+                         options.rounds, log, options.code_language, pictures)
         else:
             result = run_update(graphml, prompt, client, language,
                                 options.geometry, options.rounds, log,
-                                options.code_language)
+                                options.code_language, pictures)
         return _made(options, result)
     except (ConfigError, ReadError, PluginError) as error:
         _say('{}: {}'.format(PROGRAM, error))

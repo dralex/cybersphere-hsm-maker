@@ -93,6 +93,17 @@ When you get a diagram with a change to make:
 - Keep the comments that still apply, with their names; update their text and links with the change; remove a comment whose subject went away. Comment the new parts that need it.
 - Lines `# note: ...` describe components and settings of the diagram; they are kept anyway, use them as context.
 
+# Pictures
+
+A request may come with a picture of the system: a drawn state machine diagram (an editor export, a screenshot, a photo of a whiteboard, a sketch) or another schema (a flowchart, a block diagram, a timing diagram). The text of the request is then a comment to the picture.
+
+- A state machine diagram: transcribe it. Keep every state and its nesting, every transition with its event, guard and action, the entry and exit actions, and the names as they are written, in their script, the events too. Add nothing that is not drawn unless the comment asks for it.
+- Another schema: build the state machine it describes; where the picture is not enough, follow the comment.
+- Write the lines in the reading order of the picture: from the initial, along the arrows, left to right and top to bottom.
+- Do not write the sizes, places or colours of the picture.
+- When a label is unreadable or an arrow is unclear, choose the most likely reading and comment it with the open question.
+- If a picture is announced but you do not see one, answer only NO PICTURE.
+
 # Example
 
 ```hsm

@@ -20,7 +20,8 @@
 #
 #  -----------------------------------------------------------------------------
 
-from conftest import FAKE_INPUT, FAKE_OUTPUT, FakeClient, diagram, fenced
+from conftest import (FAKE_INPUT, FAKE_OUTPUT, PNG, FakeClient, diagram,
+                      fenced)
 import hsm_maker
 from hsm_maker import maker as M
 from hsm_maker.builder import GEOMETRY_NONE
@@ -134,3 +135,62 @@ def test_make():
     result = hsm_maker.make(PROMPT, FakeClient([fenced(LIFT)]),
                             language='en')
     assert result.ok and result.language == 'en'
+
+
+IMAGE = hsm_maker.Image(PNG, 'image/png', 'lift.png')
+
+
+def test_picture_in_every_round():
+    client = FakeClient([fenced(WRONG), fenced(LIFT)])
+    result = M.run('  ', client, pictures=[IMAGE])
+    assert (result.ok, result.rounds) == (True, 2)
+    first, second = client.calls[0][1], client.calls[1][1]
+    assert first == [{'role': 'user',
+                      'content': Texts('en').text('picture_alone'),
+                      'images': [IMAGE]}]
+    assert second[0] == first[0]
+    assert ['images' in m for m in second] == [True, False, False]
+
+
+def test_picture_comment(tmp_path):
+    path = tmp_path / 'lift.png'
+    path.write_bytes(PNG)
+    client = FakeClient([fenced(LIFT)])
+    result = hsm_maker.make('Лифт с одной кнопкой вызова', client,
+                            pictures=[str(path)])
+    assert (result.ok, result.language) == (True, 'ru')
+    question = client.calls[0][1][0]
+    assert question['content'] == Texts('ru').text(
+        'picture_request', comment='Лифт с одной кнопкой вызова')
+    assert [i.data for i in question['images']] == [PNG]
+
+
+def test_no_picture():
+    client = FakeClient(['```\nNo picture.\n```', fenced(LIFT)])
+    result = M.run(PROMPT, client, pictures=[IMAGE])
+    assert (result.ok, result.reason, result.rounds) == \
+        (False, M.NO_PICTURE, 1)
+    assert len(client.calls) == 1
+
+
+def test_no_picture_is_a_notation_without_pictures():
+    client = FakeClient([M.NO_PICTURE_ANSWER, fenced(LIFT)])
+    result = M.run(PROMPT, client)
+    assert (result.ok, result.rounds) == (True, 2)
+
+
+def test_change_by_picture():
+    graphml = M.convert(LIFT).graphml
+    old = M.Original(graphml)
+    client = FakeClient([fenced(old.notation)])
+    result = hsm_maker.update(graphml, '', client, pictures=[IMAGE])
+    assert result.ok
+    texts = Texts('en')
+    assert client.calls[0][1] == [{
+        'role': 'user', 'images': [IMAGE],
+        'content': texts.text('update_request', diagram=old.notation,
+                              change=texts.text('picture_change'))}]
+    client = FakeClient([fenced(old.notation)])
+    hsm_maker.update(graphml, 'Add a service mode', client, pictures=[IMAGE])
+    assert 'Add a service mode\n\n' + texts.text('picture_change') in \
+        client.calls[0][1][0]['content']

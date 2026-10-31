@@ -87,5 +87,8 @@
  "truncated": "Your answer was cut by the length limit; write the diagram shorter.",
  "update_request": "The diagram:\n```hsm\n{diagram}```\n\nThe change: {change}\n\nAnswer with the whole changed diagram in one hsm block.",
  "code_language": "Write the actions in {language} and declare it with the header `language: {language}`.",
+ "picture_request": "Draw the state machine of the system in the attached picture.\n\nThe comment to the picture: {comment}",
+ "picture_alone": "Draw the state machine of the system in the attached picture.",
+ "picture_change": "The attached picture shows the change.",
  "warning": "warning: {text}"
 }

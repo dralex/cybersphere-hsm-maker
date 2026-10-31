@@ -23,8 +23,9 @@
 import io
 import os
 
-from conftest import DIAGRAMS, chat_answer, diagram, fenced, validate
+from conftest import DIAGRAMS, PNG, chat_answer, diagram, fenced, validate
 from hsm_maker import cli
+from hsm_maker.language import Texts
 
 LIFT = os.path.join(DIAGRAMS, 'lift.hsm')
 WRONG = 'machine M\n  initial -> A\n  state A\n    GO -> Missng\n'
@@ -102,3 +103,49 @@ def test_server_error(stub, capsys):
     assert cli.main(['--url', stub.url, '--model', 'm', 'a lift']) == \
         cli.EXIT_SERVER
     assert 'HTTP 400' in capsys.readouterr().err
+
+
+def picture_files(tmp_path):
+    picture = tmp_path / 'lift.png'
+    picture.write_bytes(PNG)
+    comment = tmp_path / 'comment.txt'
+    comment.write_text('', encoding='utf-8')
+    return str(picture), str(comment)
+
+
+def test_picture(stub, tmp_path):
+    picture, comment = picture_files(tmp_path)
+    stub.answer(chat_answer(fenced(diagram('lift.hsm'))))
+    out = tmp_path / 'lift.graphml'
+    assert cli.main(['--url', stub.url, '--model', 'm', '--picture', picture,
+                     '-f', comment, '-o', str(out)]) == cli.EXIT_MADE
+    content = stub.requests[0][2]['messages'][1]['content']
+    assert [part['type'] for part in content] == ['image_url', 'text']
+    assert content[1]['text'] == Texts('en').text('picture_alone')
+    assert validate(str(out)) in (None, [])
+
+
+def test_picture_refused(tmp_path, capsys):
+    picture, comment = picture_files(tmp_path)
+    svg = tmp_path / 'lift.svg'
+    svg.write_text('<svg xmlns="http://www.w3.org/2000/svg"/>',
+                   encoding='utf-8')
+    assert cli.main(['--url', 'http://127.0.0.1:9/v1', '--model', 'm',
+                     '--picture', str(svg), 'a lift']) == cli.EXIT_USAGE
+    assert 'export it as PNG' in capsys.readouterr().err
+    assert cli.main(['--notation', LIFT, '--picture', picture]) == \
+        cli.EXIT_USAGE
+    assert '--picture needs the model' in capsys.readouterr().err
+    assert cli.main(['--url', 'http://127.0.0.1:9/v1', '--model', 'm',
+                     '-f', comment]) == cli.EXIT_USAGE
+    assert 'give a description' in capsys.readouterr().err
+
+
+def test_no_picture(stub, tmp_path, capsys):
+    picture, _ = picture_files(tmp_path)
+    stub.answer(chat_answer('NO PICTURE'))
+    out = tmp_path / 'lift.graphml'
+    assert cli.main(['--url', stub.url, '--model', 'm', '--picture', picture,
+                     '-o', str(out), 'a lift']) == cli.EXIT_NOT_MADE
+    assert 'the model does not see the picture' in capsys.readouterr().err
+    assert not out.exists()

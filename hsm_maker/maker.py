@@ -26,7 +26,7 @@ the model."""
 
 from .builder import (BuildError, GEOMETRY_FULL, GEOMETRY_UPDATE, build,
                       encode, verify)
-from .client import RequestLimitError, Usage
+from .client import Image, RequestLimitError, Usage, load_picture
 from .language import AUTO, Texts, choose
 from .notation import (ERROR, NotationError, WARNING, analyze, extract,
                        language_spelling, parse, render)
@@ -37,6 +37,9 @@ ROUNDS = 3
 ACCEPTED = 'accepted'
 ROUNDS_SPENT = 'rounds'
 REQUEST_LIMIT = 'request-limit'
+NO_PICTURE = 'no-picture'
+# the answer of a model that does not see the picture
+NO_PICTURE_ANSWER = 'NO PICTURE'
 
 
 class Conversion:
@@ -179,36 +182,62 @@ def _asked(question, texts, code_language):
     return question + '\n\n' + texts.text('code_language', language=chosen)
 
 
+def _images_of(pictures):
+    """The pictures as Image objects: Image objects or file paths."""
+    return [picture if isinstance(picture, Image) else load_picture(picture)
+            for picture in pictures or ()]
+
+
+def _blind(reply):
+    """Whether the model answered that it does not see the picture."""
+    return extract(reply.text).strip().rstrip('.').upper() == \
+        NO_PICTURE_ANSWER
+
+
 def run(prompt, client, language=AUTO, geometry=GEOMETRY_FULL,
-        rounds=ROUNDS, log=None, code_language=AUTO):
+        rounds=ROUNDS, log=None, code_language=AUTO, pictures=()):
     """Ask the model until the diagram is made, at most `rounds` times.
-    `log(number, reply, conversion)` is called after every round."""
+    `log(number, reply, conversion)` is called after every round; the
+    prompt is the comment to the pictures when there are any."""
+    images = _images_of(pictures)
     texts = Texts(choose(language, prompt))
-    return _loop(_asked(prompt, texts, code_language),
+    question = prompt
+    if images:
+        question = texts.text('picture_request', comment=prompt.strip()) \
+            if prompt.strip() else texts.text('picture_alone')
+    return _loop(_asked(question, texts, code_language),
                  lambda notation: convert(notation, geometry, code_language),
-                 client, texts, rounds, log)
+                 client, texts, rounds, log, images)
 
 
 def run_update(graphml, prompt, client, language=AUTO,
                geometry=GEOMETRY_UPDATE, rounds=ROUNDS, log=None,
-               code_language=AUTO):
+               code_language=AUTO, pictures=()):
     """Ask the model to change the diagram until the change applies, at
     most `rounds` times. Raise ReadError before the first request."""
+    images = _images_of(pictures)
     texts = Texts(choose(language, prompt))
     old = Original(graphml)
+    request = prompt
+    if images:
+        request = '\n\n'.join(part for part in (
+            prompt.strip(), texts.text('picture_change')) if part)
     question = texts.text('update_request', diagram=old.notation,
-                          change=prompt)
+                          change=request)
     return _loop(_asked(question, texts, code_language),
                  lambda notation: change(graphml, notation, geometry, old,
                                          code_language),
-                 client, texts, rounds, log)
+                 client, texts, rounds, log, images)
 
 
-def _loop(prompt, conversion_of, client, texts, rounds, log):
+def _loop(prompt, conversion_of, client, texts, rounds, log, images=()):
     """The rounds: ask, convert the answer, give the issues back."""
     before = Usage(client.usage.requests, client.usage.input_tokens,
                    client.usage.output_tokens)
     question = {'role': 'user', 'content': prompt}
+    if images:
+        # every round shows the picture: the repair checks against it
+        question['images'] = list(images)
     messages = [question]
     conversion = None
     reason = ROUNDS_SPENT
@@ -220,6 +249,9 @@ def _loop(prompt, conversion_of, client, texts, rounds, log):
             reason = REQUEST_LIMIT
             break
         done = number
+        if images and _blind(reply):
+            reason = NO_PICTURE
+            break
         conversion = conversion_of(extract(reply.text))
         if log is not None:
             log(number, reply, conversion)

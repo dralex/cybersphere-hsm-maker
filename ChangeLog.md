@@ -20,3 +20,7 @@ Added:
 - the change of an existing diagram (`--update`): what the change does not
   touch keeps its identifier, its drawing and its comments;
 - the plugin of CyberiadaPro: draw, change, show the notation;
+- the pictures (`--picture`, the optional Picture of the plugin dialogs): a
+  PNG, JPEG, GIF or WebP picture of a statechart or another schema with a
+  short comment makes or changes a diagram; a model that does not see it
+  stops the run;

@@ -20,11 +20,12 @@
 #
 #  -----------------------------------------------------------------------------
 
+import base64
 import socket
 
 import pytest
 
-from conftest import chat_answer
+from conftest import PNG, chat_answer
 from hsm_maker import client as C
 
 MESSAGES = [{'role': 'user', 'content': 'make it'}]
@@ -206,3 +207,67 @@ def test_from_environment():
     with pytest.raises(C.ConfigError):
         C.from_environment(protocol='rest', url='http://localhost',
                            model='m', environ={})
+
+
+PICTURE = [{'role': 'user', 'content': 'make it',
+            'images': [C.Image(PNG, C.PNG, 'lift.png')]}]
+ENCODED = base64.b64encode(PNG).decode('ascii')
+
+
+def test_chat_completions_picture(stub):
+    stub.answer(chat_answer('machine M'))
+    make(stub)[0].complete('the system', PICTURE)
+    assert stub.requests[0][2]['messages'][1] == {'role': 'user', 'content': [
+        {'type': 'image_url',
+         'image_url': {'url': 'data:image/png;base64,' + ENCODED}},
+        {'type': 'text', 'text': 'make it'}]}
+
+
+def test_messages_picture(stub):
+    stub.answer({'content': [{'type': 'text', 'text': 'M'}], 'usage': {}})
+    make(stub, C.MESSAGES)[0].complete('the system', PICTURE)
+    assert stub.requests[0][2]['messages'] == [{'role': 'user', 'content': [
+        {'type': 'image', 'source': {'type': 'base64',
+                                     'media_type': 'image/png',
+                                     'data': ENCODED}},
+        {'type': 'text', 'text': 'make it'}]}]
+
+
+@pytest.mark.parametrize('data, media_type', [
+    (PNG, C.PNG), (b'\xff\xd8\xff\xe0' + bytes(8), C.JPEG),
+    (b'GIF87a', C.GIF), (b'GIF89a' + bytes(4), C.GIF),
+    (b'RIFF\x10\x00\x00\x00WEBPVP8 ', C.WEBP),
+    (b'RIFF\x10\x00\x00\x00WAVEfmt ', None), (b'BM', None), (b'', None)])
+def test_image_type(data, media_type):
+    assert C.image_type(data) == media_type
+
+
+def test_load_picture(tmp_path):
+    path = tmp_path / 'lift.png'
+    path.write_bytes(PNG)
+    image = C.load_picture(str(path))
+    assert (image.data, image.media_type, image.name) == \
+        (PNG, C.PNG, 'lift.png')
+    assert image.data_url() == 'data:image/png;base64,' + ENCODED
+    with pytest.raises(OSError):
+        C.load_picture(str(tmp_path / 'absent.png'))
+
+
+@pytest.mark.parametrize('data, message', [
+    (b'<?xml version="1.0"?>\n<svg xmlns="http://www.w3.org/2000/svg">',
+     'is an SVG: export it as PNG'),
+    (b'%PDF-1.7', 'is not PNG, JPEG, GIF or WebP'),
+    (b'', 'is not PNG, JPEG, GIF or WebP')])
+def test_refused_pictures(tmp_path, data, message):
+    path = tmp_path / 'picture'
+    path.write_bytes(data)
+    with pytest.raises(C.ConfigError, match=message):
+        C.load_picture(str(path))
+
+
+def test_large_picture(tmp_path, monkeypatch):
+    monkeypatch.setattr(C, 'MAX_IMAGE', len(PNG) - 1)
+    path = tmp_path / 'lift.png'
+    path.write_bytes(PNG)
+    with pytest.raises(C.ConfigError, match='is larger than'):
+        C.load_picture(str(path))

@@ -1,6 +1,6 @@
 # The Cybersphere HSM Maker Interface Specification
 
-Document version: 0.6 (2026-10-23)
+Document version: 0.7 (2026-10-31)
 
 The package `hsm_maker` and the command `hsm-maker`. The reasons are in
 `ARCHITECTURE.md`, the notation and its issue codes in `NOTATION.md`.
@@ -10,9 +10,9 @@ The package `hsm_maker` and the command `hsm-maker`. The reasons are in
 * `__version__` - the version of the package.
 * `make(prompt, client=None, *, protocol=None, url=None, model=None,
   key=None, key_env=None, language='auto', code_language='auto',
-  geometry='full', rounds=3, max_requests=None, timeout=None, log=None)` -
-  make a diagram from the description `prompt`; return a `Result`;
-  `code_language` and `log` as in `maker.run`.
+  geometry='full', rounds=3, max_requests=None, timeout=None, log=None,
+  pictures=())` - make a diagram from the description `prompt`; return a
+  `Result`; `code_language`, `log` and `pictures` as in `maker.run`.
   Without `client` a `Client` is created from the arguments and the
   environment (`client.from_environment`). Raises `ConfigError` for a bad
   configuration and `ClientError` when the server fails.
@@ -24,8 +24,8 @@ The package `hsm_maker` and the command `hsm-maker`. The reasons are in
   notation.
 
 The names `Result`, `Conversion`, `Change`, `Issue`, `Client`, `Usage`,
-`ConfigError`, `ClientError`, `ReadError`, `convert`, `change`, `run` and
-`run_update` are exported by the package too.
+`Image`, `ConfigError`, `ClientError`, `ReadError`, `convert`, `change`,
+`run`, `run_update` and `load_picture` are exported by the package too.
 
 ## Module notation
 
@@ -153,10 +153,22 @@ The model servers.
 * `Client(protocol, url, model, key=None, timeout=300, retries=3,
   max_requests=16, max_tokens=8192)` - a client of one model.
   * `complete(system, messages)` - send the system prompt and the messages
-    (`{'role': 'user' | 'assistant', 'content': text}`); return a `Reply`.
-    Retries the codes 429 and 5xx and the network failures. Raises
-    `ClientError`, `RequestLimitError`.
+    (`{'role': 'user' | 'assistant', 'content': text}`, a user message may
+    add `'images': [Image]`: sent as the parts of the protocol, the images
+    first); return a `Reply`. Retries the codes 429 and 5xx and the network
+    failures. Raises `ClientError`, `RequestLimitError`.
   * `usage` - the `Usage` of all the requests of the client.
+* `IMAGE_TYPES` - the media types of the pictures: `'image/png'`,
+  `'image/jpeg'`, `'image/gif'`, `'image/webp'`.
+* `MAX_IMAGE` - the largest picture, 20 MiB.
+* `Image(data, media_type, name=None)` - a raster picture: the bytes, the
+  media type, the file name; `base64()` - the data in base64, `data_url()`
+  - `data:<media type>;base64,<data>`.
+* `image_type(data)` - the media type of the bytes by their first bytes;
+  `None` for another format.
+* `load_picture(path)` - the `Image` of a file. Raises `ConfigError` for an
+  SVG, another format or a file above `MAX_IMAGE`, `OSError` when the file
+  cannot be read.
 * `is_local(url)` - whether the server is on the local host.
 * `conventional_key_env(url)` - the conventional key variable of the
   server: `api.deepseek.com` - `DEEPSEEK_API_KEY`; `None` for an address.
@@ -216,12 +228,15 @@ The installation of the editor plugin (`editor-plugin/`).
 The conversion and the repair loop.
 
 * `ROUNDS` - 3.
-* `ACCEPTED`, `ROUNDS_SPENT`, `REQUEST_LIMIT` - the reasons of a `Result`.
+* `ACCEPTED`, `ROUNDS_SPENT`, `REQUEST_LIMIT`, `NO_PICTURE` - the reasons
+  of a `Result`.
+* `NO_PICTURE_ANSWER` - `'NO PICTURE'`, the answer of a model that does not
+  see the picture.
 * `Conversion` - one notation converted: `notation`, `diagram`,
   `document`, `graphml`, `errors`, `warnings`, `changes`, `ok`.
 * `Result` - `ok`, `graphml`, `document`, `notation` (of the last round),
   `errors`, `warnings`, `changes`, `rounds`, `usage`, `language`, `reason`
-  (`'accepted'`, `'rounds'`, `'request-limit'`).
+  (`'accepted'`, `'rounds'`, `'request-limit'`, `'no-picture'`).
 * `convert(notation, geometry=GEOMETRY_FULL, code_language=AUTO)` - parse,
   analyse, build, encode and verify one notation; return a `Conversion`.
   A `code_language` other than `AUTO` replaces the `language:` of the
@@ -235,22 +250,28 @@ The conversion and the repair loop.
 * `feedback(conversion, texts, truncated=False)` - the message to the
   model about a rejected conversion.
 * `run(prompt, client, language=AUTO, geometry=GEOMETRY_FULL,
-  rounds=ROUNDS, log=None, code_language=AUTO)` - the loop of
+  rounds=ROUNDS, log=None, code_language=AUTO, pictures=())` - the loop of
   `ARCHITECTURE.md`; return a `Result`. `log(number, reply, conversion)` is
   called after every round. A `code_language` other than `AUTO` is asked of
   the model and written (`ARCHITECTURE.md`, The code language).
+  `pictures` - `Image` objects or file paths: the prompt becomes their
+  comment and may be empty; they go with the first message of every round;
+  the answer `NO PICTURE` ends the run with the reason `'no-picture'`.
+  Raises `ConfigError` for a picture `load_picture` refuses.
   Raises `ClientError` other than the request limit. A client is any
   object with `complete(system, messages)` and `usage`.
 * `run_update(graphml, prompt, client, language=AUTO,
-  geometry=GEOMETRY_UPDATE, rounds=ROUNDS, log=None, code_language=AUTO)` -
-  the loop of the update: the diagram rendered into the first message,
-  every answer applied with `change`; `code_language` as in `run`. Raises
+  geometry=GEOMETRY_UPDATE, rounds=ROUNDS, log=None, code_language=AUTO,
+  pictures=())` - the loop of the update: the diagram rendered into the
+  first message, every answer applied with `change`; `code_language` and
+  `pictures` as in `run` (a picture shows the change). Raises
   `ReadError` before the first request.
 
 ## Command hsm-maker
 
     hsm-maker [PROMPT] [-f FILE] [--notation FILE] [--update FILE]
-              [--render FILE] [-o FILE] [--diagnostics FILE]
+              [--render FILE] [--picture FILE]... [-o FILE]
+              [--diagnostics FILE]
               [--geometry full|update|none] [--language auto|en|ru]
               [--code-language auto|NAME]
               [--save-notation FILE] [--rounds N] [--max-requests N]
@@ -267,6 +288,10 @@ The conversion and the repair loop.
   change; the geometry is `update` by default. An empty file is a new
   diagram.
 * `--render FILE` prints the notation of the diagram and exits.
+* `--picture FILE` - a raster picture of the system (PNG, JPEG, GIF, WebP),
+  repeatable; the prompt is its comment and may be empty. Refused with
+  `--notation` and `--render`. A model that does not see it ends the run
+  (exit 1).
 * `--code-language auto|NAME` (`HSM_MAKER_CODE_LANGUAGE`, `auto`) - the
   programming language of the actions: `auto` takes the model's `language:`
   header, a name is asked of the model and written; with `--notation` the
@@ -288,6 +313,7 @@ Exit codes:
 
 * `0` - the diagram is made;
 * `1` - not made: issues remain after the last round, or the request limit
-  is reached, or the notation file has errors;
+  is reached, or the model does not see the picture, or the notation file
+  has errors;
 * `2` - a usage or configuration error;
 * `3` - the model server failed.

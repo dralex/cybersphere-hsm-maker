@@ -88,6 +88,15 @@ placed around the drawing. `--render FILE` prints a diagram in the notation.
 `--diagnostics FILE` writes the issues and the changes as JSON.
 `editor-plugin/` is the plugin of `CyberiadaPro` (see its README).
 
+    hsm-maker --picture sketch.png -o light.graphml "a traffic light, events in English"
+    hsm-maker --update lift.graphml --picture service.png -o lift2.graphml
+
+`--picture FILE` shows the model a PNG, JPEG, GIF or WebP picture of the
+system: a drawn state machine is transcribed, another schema (a flowchart,
+a sketch) is interpreted; the prompt becomes a short comment and may be
+empty. The model must read images (`deepseek-flash` does); one that does
+not stops the run. An SVG is refused: export it as PNG.
+
 From Python:
 
 ```python

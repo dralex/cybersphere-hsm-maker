@@ -1,6 +1,6 @@
 # The Cybersphere HSM Maker Architecture
 
-Document version: 0.6 (2026-10-23)
+Document version: 0.7 (2026-10-31)
 
 The maker turns a description of a system written in a natural language
 into a Hierarchical State Machine (HSM) diagram stored in the
@@ -11,7 +11,9 @@ mistakes to the model until the diagram is correct, builds the document
 with the `CyberiadaML` module and lays it out.
 It changes an existing diagram the same way: the model sees the diagram in
 the notation and answers the changed one, the maker applies the difference
-to the same document and lays out only what is new.
+to the same document and lays out only what is new. A raster picture of the
+system - a drawn statechart or another schema - may come with the
+description, which is then a short comment to it.
 
 The maker is a library first and a command second. It depends on the
 `CyberiadaML` module and on the Python 3 standard library only: no agent
@@ -58,6 +60,7 @@ of `cyberiadaml-py` (`cyberiadaml_py.cml`, the same names and results,
 | R9 | Change an existing diagram by a description of the change; what is not changed keeps its identity, its place and the parts the notation does not show. | The update |
 | R10 | Run from `CyberiadaPro`: draw a new diagram, change the open one. | The editor plugin |
 | R11 | Declare the programming language of the actions: the model's choice or the user's. | The code language |
+| R12 | Make or change a diagram by a raster picture of a statechart or of another schema with a short comment. | The pictures |
 
 ## The notation
 
@@ -235,6 +238,50 @@ geometry and what the notation does not show: the formal comments
   geometry calls: the patch fetches every element by its identifier when
   it uses it.
 
+## The pictures
+
+`--picture FILE` shows the model a raster picture of the system; the
+prompt becomes its comment and may be empty. The picture is a drawn
+statechart (an editor export, a screenshot, a whiteboard photo, a sketch)
+or another schema (a flowchart, a block or timing diagram): a statechart
+is transcribed, another schema is interpreted with the comment leading.
+The answer is the notation, checked like any other.
+
+```
+ FILE --load_picture--> Image: PNG, JPEG, GIF, WebP by the first bytes
+                          |          (SVG and the rest refused)
+ comment (may be empty) --+--> the first message
+                          |      {'role': 'user', 'content': TEXT, 'images': [Image]}
+                          |      TEXT = picture_request / picture_alone,
+                          |             or update_request with picture_change
+                          v      kept in every round: the repair sees the picture
+                       client: the parts of the protocol
+                          chat-completions  [{image_url: data:TYPE;base64,...}, {text}]
+                          messages          [{image: base64 source}, {text}]
+                          v
+                        model --> "NO PICTURE"? stop: reason no-picture
+                          |
+                          v
+                       notation --> the process
+```
+
+* **Reading.** The system prompt asks to transcribe a statechart as drawn:
+  every state, nesting, transition, event, guard and action, nothing
+  added; to write the lines in the reading order of the picture, which
+  seeds the layout (the coordinates are not read, R4); to put an unreadable
+  label or an unclear arrow into a comment with the open question.
+* **Blind models.** A model without image input may get no picture: some
+  servers replace it by a text silently. The model is asked to answer `NO
+  PICTURE` then, and the run stops with the reason `no-picture` instead of
+  a made-up diagram the checks would accept.
+* **Formats.** PNG, JPEG, GIF and WebP up to 20 MiB are sent as they are:
+  the maker neither converts nor scales (R7). An SVG is refused with a
+  hint to export a PNG.
+* **Change.** With `--update` the picture shows the change or the target
+  diagram; the notation of the original goes with it as usual.
+* **Language.** An empty comment leaves the language to the editor's
+  interface language, else English.
+
 ## The languages
 
 ```
@@ -285,7 +332,8 @@ A request is retried on the codes 429 and 5xx and on network failures with
 a growing pause; the other errors stop the run. Every request counts
 against the request limit (`--max-requests`). The usage - requests, input
 and output tokens - is summed and reported. The key never appears in a
-message.
+message. A message with pictures becomes a list of parts, the pictures
+first, as base64 (The pictures); a message without them stays a string.
 
 ## The configuration
 
@@ -309,10 +357,11 @@ no key. Nothing is stored.
 `hsm_maker.make(prompt, ...)` returns a `Result`: whether the diagram was
 made, the GraphML text, the last notation, the issues, the rounds, the
 usage; `hsm_maker.update(graphml, prompt, ...)` changes a diagram and adds
-the changes to the `Result`. `hsm-maker` is the command around them:
+the changes to the `Result`; both take `pictures=`. `hsm-maker` is the command around them:
 `--update FILE` changes a diagram, `--render FILE` prints the notation of a
 diagram, `--notation FILE` applies a notation file without a model (a new
-diagram, or a change with `--update`), `--diagnostics FILE` writes the
+diagram, or a change with `--update`), `--picture FILE` adds a picture,
+`--diagnostics FILE` writes the
 issues and the changes for the editor. The details are in `API.md`.
 
 ## Code layout
@@ -323,7 +372,7 @@ issues and the changes for the editor. The details are in `API.md`.
 | `hsm_maker/cyberiadaml.py` | the `CyberiadaML` module: the binding, else `cyberiadaml_py.cml` |
 | `hsm_maker/notation.py` | the notation tree, `extract`, `parse`, `analyze`; no binding |
 | `hsm_maker/builder.py` | the tree to a `CyberiadaML.Document`, the layout, `encode`, `verify` |
-| `hsm_maker/client.py` | the protocols, the retries, the usage, the key |
+| `hsm_maker/client.py` | the protocols, the pictures, the retries, the usage, the key |
 | `hsm_maker/language.py` | the languages, the detection, the texts |
 | `hsm_maker/reader.py` | a `CyberiadaML.Document` to the notation tree with the element ids and the notes |
 | `hsm_maker/patcher.py` | the difference of two trees applied to a document, the change list |
@@ -361,6 +410,7 @@ hsm_maker`, no adapter. Its README is for the users of the editor.
  | | Add a maintenance mode entered by SERVICE    | |
  | | from Idle; rename Idle to Waiting.           | |
  | +----------------------------------------------+ |
+ | Picture    [                              ][...]  |
  | Layout     [update                           v]  |
  |                                 [Cancel]  [Run]  |
  +--------------------------------------------------+
@@ -368,14 +418,17 @@ hsm_maker`, no adapter. Its README is for the users of the editor.
 
 | Action | Result | The command after `python3` |
 |---|---|---|
-| `draw` - Draw a new diagram... | `new-document` | `-m hsm_maker -f ${param-file:prompt} -o ${output} --diagnostics ${diagnostics}` + the model options |
-| `change` - Change the diagram... | `replace` | `-m hsm_maker --update ${input} -f ${param-file:change} --geometry ${param:layout} -o ${output} --diagnostics ${diagnostics}` + the model options |
+| `draw` - Draw a new diagram... | `new-document` | `-m hsm_maker -f ${param-file:prompt} [--picture ${param:picture}] -o ${output} --diagnostics ${diagnostics}` + the model options |
+| `change` - Change the diagram... | `replace` | `-m hsm_maker --update ${input} -f ${param-file:change} [--picture ${param:picture}] --geometry ${param:layout} -o ${output} --diagnostics ${diagnostics}` + the model options |
 | `notation` - Show the notation | `log` | `-m hsm_maker --render ${input}` |
 
 The model options come from the persistent parameters (Settings...):
 model, server, protocol, language, code language, rounds and the key (`env:NAME` or
 `file:PATH`, exported to the run as `HSM_MAKER_API_KEY`, never in the
-command line; empty for a local server). The description and the change are asked at every run. The
+command line; empty for a local server). The description and the change are asked at every run
+with an optional picture (`type: file`, PNG, JPEG, GIF, WebP); the
+`--picture` argument is added only when it is given, and the text may then
+be empty. The
 `change` action keeps the identifiers of what it does not change, so the
 selection and the earlier findings still point at them; its diagnostics
 list the changes with links to the elements. The maker and the binding
@@ -483,6 +536,27 @@ The comment runs of 2026-10-23, `deepseek-flash`, the default options:
 
 All four documents passed the strict checks and opened in `CyberiadaPro`.
 
+The picture runs of 2026-10-31, `deepseek-flash`, the default options; the
+pictures of the diagrams were exported by `CyberiadaPro --batch --export`
+from the laid-out documents of `tests/diagrams`, the result was compared by
+`--render` with the original:
+
+| Picture | Comment | Rounds | Input / output tokens | Result |
+|---|---|---|---|---|
+| `lift` (the example of the system prompt) | none | 1 | 2978 / 3538 | the notation of the original, line for line |
+| `elements` | none | 1 | 2938 / 14097 | the unnamed choice got a name, one transition missed, a state put into a composite where its routes cross the composite |
+| `extended` | none | 1 | 2938 / 28663 | the points, the history states and the submachine misread where their labels overlap, `GO` read as `G0`, the flags not drawn are lost; two comments with the doubts |
+| a flowchart of a coffee machine | ru: the event names | 1 | 3863 / 2887 | interpreted: a composite for the cancel "from any step" of a note, a choice for the water check, two comments |
+| the lift with a maintenance mode, as a change of the lift | "change as the picture shows" | 1 | 3171 / 782 | the state, its two transitions and a comment added, every other element kept |
+| `elements`, `deepseek-v4-pro`, both protocols | none | 1 | 2033 / 144, 2033 / 156 | `NO PICTURE`: the servers drop the picture silently, the run stopped |
+
+The editor plugin, `hsm-maker:draw` with the flowchart alone: a new tab in
+1 round (2923 / 16031), the events it had to name commented as
+assumptions. Every document passed the strict check and `cgmlval`. A
+statechart is transcribed as far as its picture is legible: overlapping
+labels and crossing routes lose what they hide, and a dense picture costs
+many output tokens of reasoning.
+
 ## Reuse
 
 | Need | Existing tool |
@@ -511,6 +585,11 @@ All four documents passed the strict checks and opened in `CyberiadaPro`.
   long one, may cover a route, a label or another vertex (`libcyberiadaml`
   size estimate, `libhtreegeom` P10, and their ports in
   `cyberiadaml-py`).
+* A picture: the checks prove the form of the diagram, not its likeness to
+  the picture; the picture is sent again in every round of repair; no SVG,
+  no scaling - a server limits the size (5 MB an image on the `messages`
+  servers of Anthropic) and reports its own error; the drawn places are not
+  kept, only the reading order.
 
 ## Roadmap
 

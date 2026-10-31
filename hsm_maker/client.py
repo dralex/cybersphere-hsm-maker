@@ -21,8 +21,9 @@
 #  -----------------------------------------------------------------------------
 
 """The model servers of the chat-completions and the messages protocols,
-over urllib: retries, the request limit, the usage, the key."""
+over urllib: the pictures, retries, the request limit, the usage, the key."""
 
+import base64
 import ipaddress
 import json
 import os
@@ -48,6 +49,22 @@ SERVER_ERRORS = 500
 
 # the version header the messages protocol requires
 MESSAGES_VERSION = ('anthropic-version', '2023-06-01')
+
+# the raster pictures the servers read, by their first bytes
+PNG = 'image/png'
+JPEG = 'image/jpeg'
+GIF = 'image/gif'
+WEBP = 'image/webp'
+IMAGE_TYPES = (PNG, JPEG, GIF, WEBP)
+IMAGE_MAGIC = ((b'\x89PNG\r\n\x1a\n', PNG), (b'\xff\xd8\xff', JPEG),
+               (b'GIF87a', GIF), (b'GIF89a', GIF))
+RIFF_MAGIC = b'RIFF'
+WEBP_MAGIC = b'WEBP'
+WEBP_OFFSET = len(RIFF_MAGIC) + 4
+MEBIBYTE = 1024 * 1024
+MAX_IMAGE = 20 * MEBIBYTE
+SVG_HEAD = 1024
+SVG_RE = re.compile(rb'<svg[\s>]', re.I)
 
 ENV_PROTOCOL = 'HSM_MAKER_PROTOCOL'
 ENV_URL = 'HSM_MAKER_URL'
@@ -85,6 +102,53 @@ class Usage:
     def __str__(self):
         return 'requests: {}, input tokens: {}, output tokens: {}'.format(
             self.requests, self.input_tokens, self.output_tokens)
+
+
+class Image:
+    """A raster picture for the model."""
+
+    def __init__(self, data, media_type, name=None):
+        self.data = data
+        self.media_type = media_type
+        self.name = name
+
+    def base64(self):
+        """The data in base64."""
+        return base64.b64encode(self.data).decode('ascii')
+
+    def data_url(self):
+        """The data URL of the chat-completions protocol."""
+        return 'data:{};base64,{}'.format(self.media_type, self.base64())
+
+
+def image_type(data):
+    """The media type of a raster picture by its first bytes; None for
+    another format."""
+    for magic, media_type in IMAGE_MAGIC:
+        if data.startswith(magic):
+            return media_type
+    if data.startswith(RIFF_MAGIC) and \
+            data[WEBP_OFFSET:WEBP_OFFSET + len(WEBP_MAGIC)] == WEBP_MAGIC:
+        return WEBP
+    return None
+
+
+def load_picture(path):
+    """The Image of a file. Raise ConfigError for an SVG, another format or
+    a file too large, OSError when it cannot be read."""
+    with open(path, 'rb') as source:
+        data = source.read(MAX_IMAGE + 1)
+    if len(data) > MAX_IMAGE:
+        raise ConfigError('the picture {} is larger than {} MiB'.format(
+            path, MAX_IMAGE // MEBIBYTE))
+    media_type = image_type(data)
+    if media_type is None:
+        if SVG_RE.search(data[:SVG_HEAD]):
+            raise ConfigError('the picture {} is an SVG: export it as PNG'
+                              .format(path))
+        raise ConfigError('the picture {} is not PNG, JPEG, GIF or WebP'
+                          .format(path))
+    return Image(data, media_type, os.path.basename(path))
 
 
 class Reply:
@@ -179,8 +243,7 @@ class Client:
 
     def complete(self, system, messages):
         """Send the system prompt and the messages; return a Reply."""
-        messages = [{'role': m['role'], 'content': m['content']}
-                    for m in messages]
+        messages = [self._message(m) for m in messages]
         if self.protocol == CHAT_COMPLETIONS:
             headers = {}
             if self.key:
@@ -196,6 +259,22 @@ class Client:
         body = {'model': self.model, 'max_tokens': self.max_tokens,
                 'system': system, 'messages': messages}
         return self._messages_reply(self._post('/messages', headers, body))
+
+    def _message(self, message):
+        """A message of the protocol: the pictures first, then the text."""
+        images = message.get('images')
+        if not images:
+            return {'role': message['role'], 'content': message['content']}
+        parts = [self._image(image) for image in images]
+        parts.append({'type': 'text', 'text': message['content']})
+        return {'role': message['role'], 'content': parts}
+
+    def _image(self, image):
+        if self.protocol == CHAT_COMPLETIONS:
+            return {'type': 'image_url', 'image_url': {'url': image.data_url()}}
+        return {'type': 'image', 'source': {'type': 'base64',
+                                            'media_type': image.media_type,
+                                            'data': image.base64()}}
 
     def _chat_reply(self, answer):
         try:

@@ -153,6 +153,10 @@ def clean_environment(monkeypatch):
             monkeypatch.delenv(name)
 
 
+# a picture as the servers see it: the stubs need its first bytes only
+PNG = b'\x89PNG\r\n\x1a\n' + bytes(8)
+
+
 class FakeClient:
     """A scripted model: the answers in order, a text or (text, truncated);
     the request limit when they run out."""

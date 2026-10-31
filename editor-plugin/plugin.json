@@ -3,7 +3,7 @@
   "id": "hsm-maker",
   "name": "HSM Maker",
   "version": "0.1.0",
-  "description": "Draws a new diagram from a description or changes the open one with a language model; the description and the diagram are sent to the model server",
+  "description": "Draws a new diagram from a description or a picture, or changes the open one, with a language model; the description, the picture and the diagram are sent to the model server",
   "icon": "icons/draw.svg",
   "interpreter": "python3",
   "env": {
@@ -15,18 +15,26 @@
       "type": "text",
       "label": "Description",
       "scope": "run",
-      "required": true,
+      "required": false,
       "language": "markdown",
-      "description": "The system the diagram is about, in any language"
+      "description": "The system the diagram is about, in any language; with a picture, a comment to it"
     },
     {
       "id": "change",
       "type": "text",
       "label": "What to change",
       "scope": "run",
-      "required": true,
+      "required": false,
       "language": "markdown",
       "description": "The change of the open diagram"
+    },
+    {
+      "id": "picture",
+      "type": "file",
+      "label": "Picture",
+      "scope": "run",
+      "filter": "Pictures (*.png *.jpg *.jpeg *.gif *.webp)",
+      "description": "Optional: a picture of the system or of the change (PNG, JPEG, GIF, WebP); the text is then its comment"
     },
     {
       "id": "layout",
@@ -130,6 +138,7 @@
       },
       "parameters": [
         "prompt",
+        "picture",
         "model",
         "url",
         "protocol",
@@ -138,12 +147,19 @@
         "code_language",
         "rounds"
       ],
-      "description": "A new diagram from a description",
+      "description": "A new diagram from a description or a picture",
       "argv": [
         "-m",
         "hsm_maker",
         "-f",
         "${param-file:prompt}",
+        {
+          "if": "picture",
+          "argv": [
+            "--picture",
+            "${param:picture}"
+          ]
+        },
         "-o",
         "${output}",
         "--diagnostics",
@@ -174,6 +190,7 @@
       },
       "parameters": [
         "change",
+        "picture",
         "layout",
         "model",
         "url",
@@ -183,7 +200,7 @@
         "code_language",
         "rounds"
       ],
-      "description": "The open diagram changed by a description of the change",
+      "description": "The open diagram changed by a description or a picture of the change",
       "argv": [
         "-m",
         "hsm_maker",
@@ -191,6 +208,13 @@
         "${input}",
         "-f",
         "${param-file:change}",
+        {
+          "if": "picture",
+          "argv": [
+            "--picture",
+            "${param:picture}"
+          ]
+        },
         "--geometry",
         "${param:layout}",
         "-o",
