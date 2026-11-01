@@ -38,6 +38,8 @@ EN = Texts('en')
 # the picture: the full layout drawn at half its size, 10 px from the corner
 PICTURE_SCALE = 0.5
 MARGIN = 10.0
+# the share of the larger extent the layout brings in line (SEED_ALIGN)
+ALIGN = 0.25
 WIDTH, HEIGHT = 1200, 600
 
 
@@ -147,9 +149,20 @@ def _centres(graphml):
     return result
 
 
+def _side(delta, extent):
+    # the vertices nearly in line come in line (libhtreegeom SEED_ALIGN)
+    if abs(delta) < ALIGN * extent:
+        return 0
+    return 1 if delta > 0 else -1
+
+
 def _order(centres):
     names = sorted(centres)
-    return [(a, b, centres[b][0] > centres[a][0], centres[b][1] > centres[a][1])
+    return [(a, b,
+             _side(centres[b][0] - centres[a][0],
+                   max(centres[a][2], centres[b][2])),
+             _side(centres[b][1] - centres[a][1],
+                   max(centres[a][3], centres[b][3])))
             for i, a in enumerate(names) for b in names[i + 1:]]
 
 

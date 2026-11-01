@@ -291,7 +291,8 @@ A diagram drawn from a picture should look like it. Once the diagram is
 accepted, one more request - the placement round - asks the model where
 every element is in the picture; the boxes it answers are the seed of the
 arrange layout of `libhtreegeom` 1.3, which keeps the arrangement of the
-seed and computes the rest as the full layout does.
+seed, pulls the elements to their places in it scaled to the least
+distances, and computes the rest as the full layout does.
 
 ```
  the rounds (unchanged) --> the accepted diagram, laid out in full
@@ -309,22 +310,28 @@ seed and computes the rest as the full layout does.
    most texts fit - the marks (initial, final, points) at their centres
                               |
  Document.arrange_geometry: the bands, the order in a layer and the flow
-   direction of the seed kept; the places, the routes with their labels,
-   the comments of the full layout; the seed rects as the minimum sizes
+   direction of the seed kept; the places of the seed scaled to the least
+   distances (the pull), the elements nearly in line in line; the routes
+   with their labels, the comments of the full layout; the seed rects as
+   the minimum sizes
                               |
  Qt --> encode --> strict verify --> the result
  any failure (no box, a server error, the request limit, a rejected
  document): the full layout stays, with a warning
 ```
 
-* **What the picture gives.** The arrangement, not the coordinates: which
+* **What the picture gives.** The arrangement and the proportions: which
   state is left of, above or in which band of another, the direction of
-  each container's flow. The boxes of the model are rough (The records);
-  their order is not.
+  each container's flow, and the distances, scaled so that the closest
+  elements keep the gaps of the layout. The boxes of the model are rough
+  (The records), their order is not: the elements nearly in line come in
+  line, a pair drawn on each other is pushed apart without blowing the
+  drawing up.
 * **Sizes.** `--picture-size fit` (default) scales the boxes below the
   sizes of the texts, so the layout sizes every element by its text;
   `picture` scales them so that three quarters of the states fit their
-  texts, and keeps the larger proportions of the picture as minimums.
+  texts, and keeps the larger proportions of the picture as minimums and
+  its distances (the seed is never pressed).
 * **Elements.** The machines (their frames), the states, the pseudostates,
   the points and the comments; the transitions and their labels are routed
   by the layout. An element without a box is laid in by the flow.
@@ -705,7 +712,8 @@ line before the editor's own failure message.
   dialog mode: a status, questions, live findings) cannot return a
   document yet, so the plugin runs once per action.
 * The placement: the model's boxes are rough, so a drawing from a picture
-  keeps its arrangement, not its coordinates; the transitions are routed by
+  keeps its arrangement and its proportions, not its exact coordinates;
+  the transitions are routed by
   the layout, not as drawn; on the `cml` backend a document whose comments
   take part may be laid out otherwise than by the binding (the comment
   layout of `libhtreegeom` 1.3 is not ported to `cyberiadaml-py` yet).
