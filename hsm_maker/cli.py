@@ -28,7 +28,8 @@ import os
 import sys
 
 from . import __version__
-from .builder import CHANGE_GEOMETRIES, GEOMETRY_FULL, GEOMETRY_UPDATE
+from .builder import (CHANGE_GEOMETRIES, GEOMETRY_FULL, GEOMETRY_UPDATE,
+                      ROUTINGS, ROUTING_ORTHOGONAL)
 from .client import (ClientError, ConfigError, PROTOCOLS, from_environment,
                      load_picture)
 from .language import AUTO, Texts, choose, languages
@@ -88,6 +89,11 @@ def parser():
                           'drawing, none: no geometry, picture: arrange a '
                           'new diagram as its picture (full; update with '
                           '--update; picture with --picture)')
+    commands.add_argument('--routing', choices=ROUTINGS,
+                          default=ROUTING_ORTHOGONAL,
+                          help='the routes of the transitions: orthogonal - '
+                          'runs along and across the flow, polyline - '
+                          'straight segments ({})'.format(ROUTING_ORTHOGONAL))
     commands.add_argument('--picture-size', choices=SIZES, default=SIZE_FIT,
                           help='the sizes of the picture layout: fit - from '
                           'the texts, picture - at least the picture\'s '
@@ -190,10 +196,11 @@ def _offline(options, language, graphml):
     texts = Texts(choose(language, notation))
     if graphml is None:
         conversion = convert(notation, options.geometry,
-                             options.code_language)
+                             options.code_language, options.routing)
     else:
         conversion = change(graphml, notation, options.geometry,
-                            code_language=options.code_language)
+                            code_language=options.code_language,
+                            routing=options.routing)
     for issue in conversion.errors + conversion.warnings:
         prefix = '{}:{}: '.format(options.notation, issue.line) \
             if issue.line is not None else '{}: '.format(options.notation)
@@ -281,12 +288,13 @@ def main(argv=None):
         if graphml is None:
             result = run(prompt, client, language, options.geometry,
                          options.rounds, report.log, options.code_language,
-                         pictures, report.trace, options.picture_size)
+                         pictures, report.trace, options.picture_size,
+                         options.routing)
         else:
             result = run_update(graphml, prompt, client, language,
                                 options.geometry, options.rounds, report.log,
                                 options.code_language, pictures,
-                                report.trace)
+                                report.trace, options.routing)
         return _made(options, result, report)
     except (ConfigError, ReadError, PluginError) as error:
         _explain(report, error)

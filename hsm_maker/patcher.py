@@ -29,9 +29,9 @@ import textwrap
 from .cyberiadaml import CyberiadaML
 
 from .builder import (BINDING_ERRORS, BuildError, GEOMETRY_UPDATE,
-                      PLATFORM_LANGUAGE, PROPAGATION, actions_of, add_subject,
-                      container, layout, new_comment, new_element,
-                      new_transition)
+                      PLATFORM_LANGUAGE, PROPAGATION, ROUTING_ORTHOGONAL,
+                      actions_of, add_subject, container, layout,
+                      new_comment, new_element, new_transition)
 from .notation import (Comment, Issue, Subject, Transition, INITIAL, MACHINE,
                        STATE, PATH, UNNAMED, SUBJECT_ELEMENT, SUBJECT_NAME,
                        SUBJECT_BODY, language_spelling)
@@ -673,7 +673,8 @@ class _Patch:
             meta.set_string(PLATFORM_LANGUAGE, self.new.language)
 
 
-def patch(graphml, old, new, geometry=GEOMETRY_UPDATE):
+def patch(graphml, old, new, geometry=GEOMETRY_UPDATE,
+          routing=ROUTING_ORTHOGONAL):
     """Apply the analysed changed tree `new` to a fresh decode of the
     document `old` was read from; lay it out. Return (document, changes)."""
     document = decode(graphml)
@@ -685,5 +686,5 @@ def patch(graphml, old, new, geometry=GEOMETRY_UPDATE):
         work.apply()
     except BINDING_ERRORS as error:
         raise BuildError([Issue('B01', message=str(error))]) from error
-    layout(document, geometry)
+    layout(document, geometry, routing)
     return document, work.changes

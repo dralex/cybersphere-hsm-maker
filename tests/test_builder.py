@@ -160,3 +160,52 @@ def test_cyrillic_names_and_events():
         '    Дверца.ЗАКРЫТА -> Нагрев\n')))
     B.verify(text)
     assert 'ДВЕРЦА_ОТКРЫТА' in text
+
+
+# two route points this far apart on both axes make an oblique segment
+OBLIQUE = 0.5
+
+
+def _centre(element):
+    if hasattr(element, 'get_geometry_rect'):
+        r = element.get_geometry_rect()
+        return r.x + r.width / 2.0, r.y + r.height / 2.0
+    p = element.get_geometry_point()
+    return p.x, p.y
+
+
+def _oblique(document):
+    """Count the segments of the transitions along no axis.
+
+    LegacyYED: the ends off the centres of their elements, the bends
+    absolute.
+    """
+    document.convert_geometry(CyberiadaML.geometryFormatLegacyYED)
+    count = 0
+    for sm in document.get_state_machines():
+        for t in sm.find_elements_by_type(CyberiadaML.elementTransition):
+            source = sm.find_element_by_id(t.get_source_element_id())
+            target = sm.find_element_by_id(t.get_target_element_id())
+            if source is None or target is None or source is target or \
+                    t.get_source_element_id() == t.get_target_element_id():
+                continue
+            (sx, sy), (tx, ty) = _centre(source), _centre(target)
+            sp, tp = t.get_geometry_source_point(), \
+                t.get_geometry_target_point()
+            points = [(sx + sp.x, sy + sp.y)] + \
+                [(p.x, p.y) for p in t.get_geometry_polyline()] + \
+                [(tx + tp.x, ty + tp.y)]
+            count += sum(1 for a, b in zip(points, points[1:])
+                         if abs(a[0] - b[0]) > OBLIQUE and
+                         abs(a[1] - b[1]) > OBLIQUE)
+    return count
+
+
+@pytest.mark.parametrize('name', ['lift', 'elements', 'extended'])
+def test_routing(name):
+    """Route along and across the flow by default, the polylines on request."""
+    analysed = N.parse(diagram(name + '.hsm'))
+    N.analyze(analysed)
+    assert not _oblique(B.build(analysed))
+    assert _oblique(B.build(analysed, B.GEOMETRY_FULL,
+                            B.ROUTING_POLYLINE)) > 0

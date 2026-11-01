@@ -24,7 +24,8 @@
 
 __version__ = '0.1.0'
 
-from .builder import GEOMETRY_FULL, GEOMETRY_NONE, GEOMETRY_UPDATE
+from .builder import (GEOMETRY_FULL, GEOMETRY_NONE, GEOMETRY_UPDATE,
+                      ROUTING_ORTHOGONAL, ROUTING_POLYLINE)
 from .client import (Client, ClientError, ConfigError, Image,
                      RequestLimitError, Usage, from_environment, load_picture)
 from .language import AUTO
@@ -36,6 +37,7 @@ from .patcher import Change
 from .reader import ReadError
 
 __all__ = ['GEOMETRY_FULL', 'GEOMETRY_NONE', 'GEOMETRY_UPDATE',
+           'ROUTING_ORTHOGONAL', 'ROUTING_POLYLINE',
            'GEOMETRY_PICTURE', 'SIZE_FIT', 'SIZE_PICTURE', 'AUTO',
            'ROUNDS', 'Client', 'ClientError', 'ConfigError',
            'RequestLimitError', 'Usage', 'Image', 'Conversion', 'Result',
@@ -47,25 +49,25 @@ def make(prompt, client=None, *, protocol=None, url=None, model=None,
          key=None, key_env=None, language=AUTO, code_language=AUTO,
          geometry=GEOMETRY_FULL, rounds=ROUNDS, max_requests=None,
          timeout=None, log=None, pictures=(), trace=None,
-         size=SIZE_FIT):
+         size=SIZE_FIT, routing=ROUTING_ORTHOGONAL):
     """Make a diagram from the description `prompt`, the comment to the
     pictures when there are any; return a Result."""
     if client is None:
         client = from_environment(protocol, url, model, key, key_env,
                                   max_requests=max_requests, timeout=timeout)
     return run(prompt, client, language, geometry, rounds, log,
-               code_language, pictures, trace, size)
+               code_language, pictures, trace, size, routing)
 
 
 def update(graphml, prompt, client=None, *, protocol=None, url=None,
            model=None, key=None, key_env=None, language=AUTO,
            code_language=AUTO, geometry=GEOMETRY_UPDATE, rounds=ROUNDS,
            max_requests=None, timeout=None, log=None, pictures=(),
-           trace=None):
+           trace=None, routing=ROUTING_ORTHOGONAL):
     """Change the diagram of the GraphML text by the description `prompt`
     and the pictures; return a Result with the changes."""
     if client is None:
         client = from_environment(protocol, url, model, key, key_env,
                                   max_requests=max_requests, timeout=timeout)
     return run_update(graphml, prompt, client, language, geometry, rounds,
-                      log, code_language, pictures, trace)
+                      log, code_language, pictures, trace, routing)

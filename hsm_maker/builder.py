@@ -39,6 +39,11 @@ GEOMETRY_NONE = 'none'
 GEOMETRY_UPDATE = 'update'
 GEOMETRIES = (GEOMETRY_FULL, GEOMETRY_NONE)
 CHANGE_GEOMETRIES = (GEOMETRY_UPDATE, GEOMETRY_FULL, GEOMETRY_NONE)
+# the routes of the transitions: in runs along and across the flow, or the
+# straight segments through the bends of the layers
+ROUTING_ORTHOGONAL = 'orthogonal'
+ROUTING_POLYLINE = 'polyline'
+ROUTINGS = (ROUTING_ORTHOGONAL, ROUTING_POLYLINE)
 # the meta key of the code language
 PLATFORM_LANGUAGE = 'platformLanguage'
 # the markup of the comments the maker writes (PNST 1044, 9.3)
@@ -188,10 +193,17 @@ def _drawn(document):
     return False
 
 
-def layout(document, geometry):
+def routing_of(routing):
+    """The LayoutRouting of a routing name."""
+    return CyberiadaML.layoutRoutingPolyline if routing == ROUTING_POLYLINE \
+        else CyberiadaML.layoutRoutingOrthogonal
+
+
+def layout(document, geometry, routing=ROUTING_ORTHOGONAL):
     """Lay the document out (full), complete its drawing (update; the full
-    layout when nothing is drawn) or clean it (none); declare the
-    geometry. The elements are recreated: fetch them again by id."""
+    layout when nothing is drawn) or clean it (none), the transitions
+    routed as `routing` says; declare the geometry. The elements are
+    recreated: fetch them again by id."""
     if geometry == GEOMETRY_NONE:
         if _drawn(document):
             _call(None, document.clean_geometry)
@@ -199,14 +211,14 @@ def layout(document, geometry):
         return
     if geometry == GEOMETRY_UPDATE and _drawn(document):
         bordered = all(m.has_geometry() for m in document.get_state_machines())
-        _call(None, document.update_geometry, bordered)
+        _call(None, document.update_geometry, bordered, routing_of(routing))
     else:
-        _call(None, document.reconstruct_geometry, True)
+        _call(None, document.reconstruct_geometry, True, routing_of(routing))
     # without the declaration the edge geometry breaks the strict check
     document.meta().set_geometry(CyberiadaML.geometryDeclarationFull)
 
 
-def build(diagram, geometry=GEOMETRY_FULL):
+def build(diagram, geometry=GEOMETRY_FULL, routing=ROUTING_ORTHOGONAL):
     """Create the document of an analysed diagram and lay it out. Raise
     BuildError."""
     document = CyberiadaML.Document()
@@ -242,7 +254,7 @@ def build(diagram, geometry=GEOMETRY_FULL):
         for subject in comment.subjects:
             add_subject(document, elements[id(comment)], subject,
                         elements[id(subject.target)])
-    layout(document, geometry)
+    layout(document, geometry, routing)
     return document
 
 

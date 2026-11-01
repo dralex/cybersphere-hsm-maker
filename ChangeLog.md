@@ -29,6 +29,9 @@ Added:
   balance, the model, the server, the rounds), the dialog with the model
   by `-v` (`-vv` with the system prompt) and the Show the dialog setting
   of the plugin;
+- the routing (`--routing orthogonal|polyline`, the Routing setting of the
+  plugin; `routing` of the API): the transitions in runs along and across
+  the flow by default, the straight segments on request (libhtreegeom 1.3);
 - the placement: a diagram drawn from a picture is arranged as the picture,
   its proportions kept, by one more request and the arrange layout of
   libhtreegeom 1.3

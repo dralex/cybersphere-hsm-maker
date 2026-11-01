@@ -28,7 +28,8 @@ import json
 import math
 import re
 
-from .builder import GEOMETRY_NONE, build, encode, verify
+from .builder import (GEOMETRY_NONE, ROUTING_ORTHOGONAL, build, encode,
+                      routing_of, verify)
 from .cyberiadaml import CyberiadaML
 from .notation import INITIAL, MACHINE, STATE, extract
 from .reader import decode, read
@@ -196,10 +197,10 @@ def _needs(graphml):
     return result
 
 
-def apply(diagram, graphml, boxes, listed, size):
+def apply(diagram, graphml, boxes, listed, size, routing=ROUTING_ORTHOGONAL):
     """The analysed diagram arranged as the boxes: built without geometry,
-    the scaled boxes as absolute rects and points, the arrange layout;
-    return (document, text)."""
+    the scaled boxes as absolute rects and points, the arrange layout routed
+    as `routing` says; return (document, text)."""
     factor = scale(boxes, listed, _needs(graphml), size)
     by_number = {item.number: item for item in listed}
     document = build(diagram, GEOMETRY_NONE)
@@ -216,7 +217,7 @@ def apply(diagram, graphml, boxes, listed, size):
         else:
             element.update_geometry(CyberiadaML.Rect(left, top, right - left,
                                                      bottom - top))
-    document.arrange_geometry(True)
+    document.arrange_geometry(True, routing_of(routing))
     document.convert_geometry(CyberiadaML.geometryFormatQt)
     document.meta().set_geometry(CyberiadaML.geometryDeclarationFull)
     text = encode(document)

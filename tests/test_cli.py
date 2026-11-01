@@ -43,6 +43,17 @@ def test_offline_to_stdout(capfd):
     assert 'geometry/ none' in capfd.readouterr().out
 
 
+def test_offline_routing(tmp_path):
+    out = {}
+    for routing in ('orthogonal', 'polyline'):
+        path = tmp_path / (routing + '.graphml')
+        assert cli.main(['--notation', LIFT, '--routing', routing, '-o',
+                         str(path)]) == cli.EXIT_MADE
+        assert validate(str(path)) in (None, [])
+        out[routing] = path.read_text(encoding='utf-8')
+    assert out['orthogonal'] != out['polyline']
+
+
 def test_offline_issues(tmp_path, capsys):
     bad = tmp_path / 'bad.hsm'
     bad.write_text(WRONG, encoding='utf-8')

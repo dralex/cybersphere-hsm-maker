@@ -137,6 +137,18 @@
       "description": "How many times the model may correct its answer"
     },
     {
+      "id": "routing",
+      "type": "enum",
+      "label": "Routing",
+      "scope": "persistent",
+      "choices": [
+        "orthogonal",
+        "polyline"
+      ],
+      "default": "orthogonal",
+      "description": "The routes of the transitions: orthogonal - runs along and across the flow; polyline - straight segments"
+    },
+    {
       "id": "picture_size",
       "type": "enum",
       "label": "Picture size",
@@ -179,6 +191,7 @@
         "language",
         "code_language",
         "rounds",
+        "routing",
         "picture_size",
         "verbose"
       ],
@@ -215,6 +228,8 @@
         "${param:code_language}",
         "--rounds",
         "${param:rounds}",
+        "--routing",
+        "${param:routing}",
         {
           "if": "verbose",
           "argv": [
@@ -244,6 +259,7 @@
         "language",
         "code_language",
         "rounds",
+        "routing",
         "verbose"
       ],
       "description": "The open diagram changed by a description or a picture of the change",
@@ -279,6 +295,8 @@
         "${param:code_language}",
         "--rounds",
         "${param:rounds}",
+        "--routing",
+        "${param:routing}",
         {
           "if": "verbose",
           "argv": [

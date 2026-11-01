@@ -155,6 +155,14 @@ is saved:
 | `update` (default of `--update`) | `update_geometry` - the drawn elements keep their places, the new ones are laid out around them (`libhtreegeom` 1.2); a diagram without geometry gets the full layout |
 | `picture` (default of `--picture`) | `arrange_geometry` - the full layered layout arranged as the picture: the places of the elements in the picture are the seed (The placement, `libhtreegeom` 1.3); without a picture it is `full` |
 
+`--routing` (the plugin's Routing) shapes the transitions of every layout:
+`orthogonal` (default) - runs along and across the flow, the ends spread
+on the sides of the states facing the flow, a choice at its tips, the turns
+in the channels between the layers; `polyline` - the straight segments of
+the earlier layouts (`libhtreegeom` 1.3, P9 orthogonal; the `routing`
+argument of `reconstruct_geometry`, `update_geometry` and `arrange_geometry`
+of `libcyberiadamlpp` 1.1 and `cyberiadaml-py` 1.8).
+
 The order of the lines in the notation is the initial order of the
 vertices inside each layer of the layout, so a diagram written in the
 order of its flow is drawn in that order. A document without geometry
@@ -528,13 +536,14 @@ hsm_maker`, no adapter. Its README is for the users of the editor.
 
 | Action | Result | The command after `python3` |
 |---|---|---|
-| `draw` - Draw a new diagram... | `new-document` | `-m hsm_maker -f ${param-file:prompt} [--picture ${param:picture}] --geometry ${param:draw_layout} --picture-size ${param:picture_size} -o ${output} --diagnostics ${diagnostics}` + the model options |
-| `change` - Change the diagram... | `replace` | `-m hsm_maker --update ${input} -f ${param-file:change} [--picture ${param:picture}] --geometry ${param:layout} -o ${output} --diagnostics ${diagnostics}` + the model options |
+| `draw` - Draw a new diagram... | `new-document` | `-m hsm_maker -f ${param-file:prompt} [--picture ${param:picture}] --geometry ${param:draw_layout} --picture-size ${param:picture_size} -o ${output} --diagnostics ${diagnostics}` + the model options and `--routing ${param:routing}` |
+| `change` - Change the diagram... | `replace` | `-m hsm_maker --update ${input} -f ${param-file:change} [--picture ${param:picture}] --geometry ${param:layout} -o ${output} --diagnostics ${diagnostics}` + the model options and `--routing ${param:routing}` |
 | `notation` - Show the notation | `log` | `-m hsm_maker --render ${input}` |
 
 The model options come from the persistent parameters (Settings...):
-model, server, protocol, language, code language, rounds, Picture size
-(`fit` or `picture`, The placement), Verbose (`-v`: the
+model, server, protocol, language, code language, rounds, Routing
+(`orthogonal` or `polyline`), Picture size (`fit` or `picture`, The
+placement), Verbose (`-v`: the
 dialog in the output tab) and the key (`env:NAME` or
 `file:PATH`, exported to the run as `HSM_MAKER_API_KEY`, never in the
 command line; empty for a local server). The description and the change are asked at every run

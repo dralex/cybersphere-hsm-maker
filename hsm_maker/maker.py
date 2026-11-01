@@ -26,7 +26,8 @@ the model."""
 
 from . import placement
 from .builder import (BINDING_ERRORS, BuildError, GEOMETRY_FULL,
-                      GEOMETRY_UPDATE, build, encode, verify)
+                      GEOMETRY_UPDATE, ROUTING_ORTHOGONAL, build, encode,
+                      verify)
 from .client import (ClientError, Image, RequestLimitError, Usage, image_size,
                      load_picture)
 from .language import AUTO, Texts, choose
@@ -92,7 +93,8 @@ def _chosen(code_language):
     return language_spelling(code_language)
 
 
-def convert(notation, geometry=GEOMETRY_FULL, code_language=AUTO):
+def convert(notation, geometry=GEOMETRY_FULL, code_language=AUTO,
+            routing=ROUTING_ORTHOGONAL):
     """Parse, analyse, build, encode and verify one notation."""
     conversion = Conversion(notation)
     try:
@@ -108,7 +110,7 @@ def convert(notation, geometry=GEOMETRY_FULL, code_language=AUTO):
     if conversion.errors:
         return conversion
     try:
-        document = build(conversion.diagram, geometry)
+        document = build(conversion.diagram, geometry, routing)
         graphml = encode(document)
         verify(graphml)
     except BuildError as error:
@@ -131,7 +133,7 @@ class Original:
 
 
 def change(graphml, notation, geometry=GEOMETRY_UPDATE, old=None,
-           code_language=AUTO):
+           code_language=AUTO, routing=ROUTING_ORTHOGONAL):
     """Apply one changed notation to the diagram of the GraphML text; the
     issues the original already has are warnings. Raise ReadError."""
     old = old if old is not None else Original(graphml)
@@ -154,7 +156,7 @@ def change(graphml, notation, geometry=GEOMETRY_UPDATE, old=None,
         return conversion
     try:
         document, changes = patch(graphml, old.tree, conversion.diagram,
-                                  geometry)
+                                  geometry, routing)
         text = encode(document)
         verify(text)
     except (PatchError, BuildError) as error:
@@ -205,7 +207,7 @@ def _blind(reply):
 
 def run(prompt, client, language=AUTO, geometry=GEOMETRY_FULL,
         rounds=ROUNDS, log=None, code_language=AUTO, pictures=(), trace=None,
-        size=placement.SIZE_FIT):
+        size=placement.SIZE_FIT, routing=ROUTING_ORTHOGONAL):
     """Ask the model until the diagram is made, at most `rounds` times.
     `trace(number, system, messages)` is called before every request,
     `log(number, reply, conversion)` after every answer; the prompt is the
@@ -224,17 +226,18 @@ def run(prompt, client, language=AUTO, geometry=GEOMETRY_FULL,
     if placing:
         geometry = GEOMETRY_FULL
     result = _loop(asked,
-                   lambda notation: convert(notation, geometry, code_language),
+                   lambda notation: convert(notation, geometry, code_language,
+                                            routing),
                    client, texts, rounds, log, images, trace)
     if placing and images and result.ok:
         _place(result, asked, images, client, texts, code_language, size,
-               log, trace)
+               log, trace, routing)
         result.usage = _spent(client, before)
     return result
 
 
 def _place(result, asked, images, client, texts, code_language, size, log,
-           trace):
+           trace, routing=ROUTING_ORTHOGONAL):
     """The placement round: the accepted diagram arranged as the first
     picture; any failure keeps the full layout with its reason."""
     listed = []
@@ -259,7 +262,7 @@ def _place(result, asked, images, client, texts, code_language, size, log,
         diagram.language = _chosen(code_language) or diagram.language
         analyze(diagram)
         result.document, result.graphml = placement.apply(
-            diagram, result.graphml, boxes, listed, size)
+            diagram, result.graphml, boxes, listed, size, routing)
         result.placement = placement.Placement(len(boxes), len(listed))
     except PLACEMENT_ERRORS as error:
         result.placement = placement.Placement(
@@ -270,7 +273,8 @@ def _place(result, asked, images, client, texts, code_language, size, log,
 
 def run_update(graphml, prompt, client, language=AUTO,
                geometry=GEOMETRY_UPDATE, rounds=ROUNDS, log=None,
-               code_language=AUTO, pictures=(), trace=None):
+               code_language=AUTO, pictures=(), trace=None,
+               routing=ROUTING_ORTHOGONAL):
     """Ask the model to change the diagram until the change applies, at
     most `rounds` times. Raise ReadError before the first request."""
     images = _images_of(pictures)
@@ -284,7 +288,7 @@ def run_update(graphml, prompt, client, language=AUTO,
                           change=request)
     return _loop(_asked(question, texts, code_language),
                  lambda notation: change(graphml, notation, geometry, old,
-                                         code_language),
+                                         code_language, routing),
                  client, texts, rounds, log, images, trace)
 
 

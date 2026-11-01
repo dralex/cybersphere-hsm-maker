@@ -62,6 +62,9 @@ buttons.
   the same order, the transitions routed anew; `full` takes the library's
   own layout. If the placement fails, the diagram keeps the full layout and
   the output tab says why.
+* **Routing** (Settings) - `orthogonal` draws the transitions in runs along
+  and across the flow, from the sides of the states and the tips of the
+  choices; `polyline` in straight segments.
 * **Picture size** (Settings) - `fit` sizes the arranged states by their
   texts; `picture` keeps at least the proportions of the picture.
 * The settings are asked once and kept: the model (`deepseek-flash`), the

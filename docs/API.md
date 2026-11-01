@@ -11,10 +11,10 @@ The package `hsm_maker` and the command `hsm-maker`. The reasons are in
 * `make(prompt, client=None, *, protocol=None, url=None, model=None,
   key=None, key_env=None, language='auto', code_language='auto',
   geometry='full', rounds=3, max_requests=None, timeout=None, log=None,
-  pictures=(), trace=None, size='fit')` - make a diagram from the
-  description `prompt`; return a `Result`; `code_language`, `log`,
-  `pictures`, `trace`, `geometry` (`'picture'` too) and `size` as in
-  `maker.run`.
+  pictures=(), trace=None, size='fit', routing='orthogonal')` - make a
+  diagram from the description `prompt`; return a `Result`;
+  `code_language`, `log`, `pictures`, `trace`, `geometry` (`'picture'`
+  too), `size` and `routing` as in `maker.run`.
   Without `client` a `Client` is created from the arguments and the
   environment (`client.from_environment`). Raises `ConfigError` for a bad
   configuration and `ClientError` when the server fails.
@@ -313,7 +313,7 @@ The conversion and the repair loop.
   model about a rejected conversion.
 * `run(prompt, client, language=AUTO, geometry=GEOMETRY_FULL,
   rounds=ROUNDS, log=None, code_language=AUTO, pictures=(), trace=None,
-  size=SIZE_FIT)` -
+  size=SIZE_FIT, routing=ROUTING_ORTHOGONAL)` -
   the loop of `ARCHITECTURE.md`; return a `Result`. `trace(number, system,
   messages)` is called before every request with what is sent (a user
   message may have `images`), `log(number, reply, conversion)` after every
@@ -323,7 +323,11 @@ The conversion and the repair loop.
   full, then the placement round arranges it as the first picture
   (`size`: `'fit'` or `'picture'`); its `trace` and `log` have the number
   `None` and the `log` gets the `Placement`; a failed placement keeps the
-  full layout. Without a picture `'picture'` is `'full'`.
+  full layout. Without a picture `'picture'` is `'full'`. `routing`:
+  `ROUTING_ORTHOGONAL` (`'orthogonal'`, the runs along and across the
+  flow) or `ROUTING_POLYLINE` (`'polyline'`) for every layout of the run;
+  `convert`, `change`, `run_update`, `make`, `update`,
+  `builder.build`, `patcher.patch` and `placement.apply` take it too.
   `pictures` - `Image` objects or file paths: the prompt becomes their
   comment and may be empty; they go with the first message of every round;
   the answer `NO PICTURE` ends the run with the reason `'no-picture'`.
@@ -332,7 +336,8 @@ The conversion and the repair loop.
   object with `complete(system, messages)` and `usage`.
 * `run_update(graphml, prompt, client, language=AUTO,
   geometry=GEOMETRY_UPDATE, rounds=ROUNDS, log=None, code_language=AUTO,
-  pictures=(), trace=None)` - the loop of the update: the diagram rendered into the
+  pictures=(), trace=None, routing=ROUTING_ORTHOGONAL)` - the loop of the
+  update: the diagram rendered into the
   first message, every answer applied with `change`; `code_language` and
   `pictures` as in `run` (a picture shows the change). Raises
   `ReadError` before the first request.
@@ -343,7 +348,8 @@ The conversion and the repair loop.
               [--render FILE] [--picture FILE]... [-o FILE]
               [--diagnostics FILE]
               [--geometry full|update|none|picture]
-              [--picture-size fit|picture] [--language auto|en|ru]
+              [--picture-size fit|picture] [--routing orthogonal|polyline]
+              [--language auto|en|ru]
               [--code-language auto|NAME]
               [--save-notation FILE] [--rounds N] [--max-requests N]
               [--timeout SECONDS] [--protocol chat-completions|messages]
@@ -363,6 +369,9 @@ The conversion and the repair loop.
   arranges the new diagram as its first picture by the placement round;
   `--picture-size fit|picture` (`fit`) the sizes of its seed. Refused with
   `--update` and `--notation`.
+* `--routing orthogonal|polyline` (`orthogonal`) - the routes of the
+  transitions of every layout: runs along and across the flow, or straight
+  segments.
 * `--picture FILE` - a raster picture of the system (PNG, JPEG, GIF, WebP),
   repeatable; the prompt is its comment and may be empty. Refused with
   `--notation` and `--render`. A model that does not see it ends the run
