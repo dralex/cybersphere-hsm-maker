@@ -359,11 +359,14 @@ distances, and computes the rest as the full layout does.
   (The records), their order is not: the elements nearly in line come in
   line, a pair drawn on each other is pushed apart without blowing the
   drawing up.
-* **Sizes.** `--picture-size fit` (default) scales the boxes below the
-  sizes of the texts, so the layout sizes every element by its text;
-  `picture` scales them so that three quarters of the states fit their
-  texts, and keeps the larger proportions of the picture as minimums and
-  its distances (the seed is never pressed).
+* **Sizes.** `--picture-size picture` (default) scales the boxes so that
+  three quarters of the states fit their texts, and keeps the larger
+  proportions of the picture as minimums and its distances (the seed is
+  never pressed); `fit` scales them below the sizes of the texts, so the
+  layout sizes every element by its text - the seed shrinks under the
+  states the layout sizes by their texts, and the pull stretches it back
+  by its tightest pair: a dense picture comes out larger and less alike
+  (The records).
 * **Elements.** The machines (their frames), the states, the pseudostates,
   the points and the comments; the transitions and their labels are routed
   by the layout. An element without a box is laid in by the flow.

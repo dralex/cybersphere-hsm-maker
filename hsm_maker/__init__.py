@@ -49,7 +49,7 @@ def make(prompt, client=None, *, protocol=None, url=None, model=None,
          key=None, key_env=None, language=AUTO, code_language=AUTO,
          geometry=GEOMETRY_FULL, rounds=ROUNDS, max_requests=None,
          timeout=None, log=None, pictures=(), trace=None,
-         size=SIZE_FIT, routing=ROUTING_ORTHOGONAL, check=True):
+         size=SIZE_PICTURE, routing=ROUTING_ORTHOGONAL, check=True):
     """Make a diagram from the description `prompt`, the comment to the
     pictures when there are any; return a Result."""
     if client is None:

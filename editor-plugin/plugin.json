@@ -169,7 +169,7 @@
         "fit",
         "picture"
       ],
-      "default": "fit",
+      "default": "picture",
       "description": "The sizes of a diagram arranged as its picture: fit - from the texts; picture - at least the proportions of the picture"
     },
     {

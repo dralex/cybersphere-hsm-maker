@@ -224,7 +224,8 @@ def _blind(reply):
 
 def run(prompt, client, language=AUTO, geometry=GEOMETRY_FULL,
         rounds=ROUNDS, log=None, code_language=AUTO, pictures=(), trace=None,
-        size=placement.SIZE_FIT, routing=ROUTING_ORTHOGONAL, check=True):
+        size=placement.SIZE_PICTURE, routing=ROUTING_ORTHOGONAL,
+        check=True):
     """Ask the model until the diagram is made, at most `rounds` times.
     `trace(number, system, messages)` is called before every request,
     `log(number, reply, conversion)` after every answer; the prompt is the

@@ -39,6 +39,7 @@ Added:
 - the placement: a diagram drawn from a picture is arranged as the picture,
   its proportions and the sides the transitions leave and enter by kept, by one more request and the arrange layout of
   libhtreegeom 1.3
-  (`--geometry picture`, the default with `--picture`; `--picture-size`;
+  (`--geometry picture`, the default with `--picture`; `--picture-size`,
+  `picture` by default;
   the Layout and Picture size options of the plugin); a failed placement
   keeps the full layout with a warning;

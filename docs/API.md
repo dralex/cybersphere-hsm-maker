@@ -11,7 +11,7 @@ The package `hsm_maker` and the command `hsm-maker`. The reasons are in
 * `make(prompt, client=None, *, protocol=None, url=None, model=None,
   key=None, key_env=None, language='auto', code_language='auto',
   geometry='full', rounds=3, max_requests=None, timeout=None, log=None,
-  pictures=(), trace=None, size='fit', routing='orthogonal', check=True)` -
+  pictures=(), trace=None, size='picture', routing='orthogonal', check=True)` -
   make a diagram from the description `prompt`; return a `Result`;
   `code_language`, `log`, `pictures`, `trace`, `geometry` (`'picture'`
   too), `size`, `routing` and `check` as in `maker.run`.
@@ -321,7 +321,7 @@ The conversion and the repair loop.
   model about a rejected conversion.
 * `run(prompt, client, language=AUTO, geometry=GEOMETRY_FULL,
   rounds=ROUNDS, log=None, code_language=AUTO, pictures=(), trace=None,
-  size=SIZE_FIT, routing=ROUTING_ORTHOGONAL, check=True)` -
+  size=SIZE_PICTURE, routing=ROUTING_ORTHOGONAL, check=True)` -
   the loop of `ARCHITECTURE.md`; return a `Result`. `trace(number, system,
   messages)` is called before every request with what is sent (a user
   message may have `images`), `log(number, reply, conversion)` after every
@@ -382,7 +382,7 @@ The conversion and the repair loop.
 * `--render FILE` prints the notation of the diagram and exits.
 * `--geometry picture` (the default with `--picture` and without `--update`)
   arranges the new diagram as its first picture by the placement round;
-  `--picture-size fit|picture` (`fit`) the sizes of its seed. Refused with
+  `--picture-size fit|picture` (`picture`) the sizes of its seed. Refused with
   `--update` and `--notation`.
 * `--check-picture [on|off]` (`on`), `--no-check-picture` - the check round
   of a new diagram made from a picture.

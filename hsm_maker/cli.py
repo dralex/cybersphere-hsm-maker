@@ -35,7 +35,7 @@ from .client import (ClientError, ConfigError, PROTOCOLS, from_environment,
 from .language import AUTO, Texts, choose, languages
 from .maker import ROUNDS, Original, change, convert, run, run_update
 from .notation import ERROR, WARNING
-from .placement import GEOMETRY_PICTURE, SIZES, SIZE_FIT
+from .placement import GEOMETRY_PICTURE, SIZES, SIZE_PICTURE
 from .plugin import PLUGIN_ID, PluginError, install
 from .reader import ReadError
 from .report import PROGRAM, Report
@@ -105,10 +105,11 @@ def parser():
     commands.add_argument('--no-check-picture', dest='check_picture',
                           action='store_const', const=CHECK_OFF,
                           help='no check round')
-    commands.add_argument('--picture-size', choices=SIZES, default=SIZE_FIT,
+    commands.add_argument('--picture-size', choices=SIZES,
+                          default=SIZE_PICTURE,
                           help='the sizes of the picture layout: fit - from '
                           'the texts, picture - at least the picture\'s '
-                          'proportions ({})'.format(SIZE_FIT))
+                          'proportions ({})'.format(SIZE_PICTURE))
     commands.add_argument('--language', choices=[AUTO] + languages(),
                           help='the language of the instructions '
                           '(${}, auto)'.format(ENV_LANGUAGE))
