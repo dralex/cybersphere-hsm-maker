@@ -143,6 +143,19 @@ def test_issues(text, expected):
     assert issues(text) == expected
 
 
+def test_comment_on_a_transition_to_a_quoted_name():
+    """A quoted name after the arrow is the target, a quoted text after it
+    the fragment."""
+    tree = N.parse('machine M\n  initial -> "A a"\n  state "A a"\n'
+                   '    GO -> "B b" / run()\n  state "B b"\n'
+                   '  comment (on "A a" GO -> "B b", '
+                   '"A a" GO -> "B b" "run()")\n    Note.\n')
+    assert N.analyze(tree) == []
+    first, second = tree.machines[0].comments[0].subjects
+    assert (first.target_ref, first.kind, second.kind, second.fragment) == \
+        ('"B b"', N.SUBJECT_ELEMENT, N.SUBJECT_BODY, 'run()')
+
+
 def test_comment_event_is_a_transition():
     tree = N.parse('machine M\n  initial -> A\n  state A\n    comment -> B\n'
                    '  state B\n')

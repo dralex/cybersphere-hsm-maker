@@ -47,6 +47,8 @@ COMMENT = 'comment'
 SUBJECT_ELEMENT = 'element'
 SUBJECT_NAME = 'name'
 SUBJECT_BODY = 'body'
+# the arrow of a transition
+ARROW = '->'
 
 ERROR = 'error'
 WARNING = 'warning'
@@ -661,7 +663,9 @@ def _subject(text):
     subject = Subject()
     tokens = _tokens(text)
     end = len(text)
-    if len(tokens) > 1 and tokens[-1][2]:
+    # a quoted text last is the fragment, unless it is the target of an arrow
+    if len(tokens) > 1 and tokens[-1][2] and \
+            text[tokens[-2][0]:tokens[-2][1]] != ARROW:
         start, stop, _ = tokens[-1]
         subject.kind, subject.fragment = SUBJECT_BODY, \
             _unescape(text[start + 1:stop - 1])
