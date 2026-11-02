@@ -381,6 +381,46 @@ distances, and computes the rest as the full layout does.
 * **Change.** A change keeps its drawing (`update`): the placement is for a
   new diagram only.
 
+### The records
+
+The picture runs of 2026-11-02, `deepseek-flash`, with the orthogonal
+routes, the check round and the placement; the runs used the picture size
+`fit`, then their logged boxes were applied again with `picture` (no new
+request). The likeness is `tools/likeness.py` against the document the
+picture was exported from (an editor export of a full layout of
+`tests/diagrams`, so the full layout of a faithful notation matches it by
+construction): order of the sibling pairs / displacement after the fitted
+scale (a share of the diagonal) / overlap.
+
+| Picture | Rounds, requests | Check | Placed | Matched elements, transitions | `fit` | `picture` | Full layout |
+|---|---|---|---|---|---|---|---|
+| `lift` | 1, 3 | matches | 7 of 7 | 6 of 6, 6 of 6 | 1.0 / 0.012 / 0.75 | 1.0 / 0.013 / 0.77 | 1.0 / 0 / 1.0 |
+| `elements` | 1, 3 | corrected | 13 of 15 | 9 of 10, 8 of 11 | 0.86 / 0.152 / 0.00 | 1.0 / 0.028 / 0.52 | 1.0 / 0.027 / 0.48 |
+| `extended` | 2, 4 | rejected (2 issues) | 20 of 23 | 15 of 19, 8 of 18 | 0.76 / 0.108 / 0.01 | 0.97 / 0.035 / 0.43 | 0.86 / 0.028 / 0.52 |
+| the coffee flowchart | 2, 4 | matches | 10 of 14 | - | - | - | - |
+| `door-with-code` | 1, 3 | matches | 16 of 16 | - | - | 2.64 x the picture | - |
+
+* The picture size `picture` keeps the arrangement and the proportions
+  (the order 0.97-1.0); `fit` shrinks the seed under the states laid out
+  by their texts and the pull stretches it back by its tightest pair - the
+  default is `picture` since.
+* The door (the reference picture of a real diagram: two nested
+  composites, two choices, 21 transitions): every element, the structure
+  and the arrangement as drawn, the choices small, the routes square; but
+  2.64 times the picture: the label slots of the layout give the flow more
+  room than the picture does, and one scale for both axes takes the
+  tightest pair. The same boxes with the scale of the median pair: 1.52
+  times, without the pull 1.37 times (the `cyberiadaml-py` port). The
+  first run of the door failed on a quoted target of a comment link (the
+  notation, fixed).
+* The check round: one diagram corrected (three transitions came back),
+  one correction rejected and the diagram kept, two matches; it costs
+  one request of about the size of a round.
+* The editor sizes the header band of a composite by its own fonts and
+  draws `exit/` at the bottom; the layout estimates the band and puts all
+  the actions on top: a state nested in a composite with actions is drawn
+  shifted from its routes (the lift: 43 px).
+
 ## The languages
 
 ```
