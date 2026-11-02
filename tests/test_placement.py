@@ -41,6 +41,7 @@ MARGIN = 10.0
 # the share of the larger extent the layout brings in line (SEED_ALIGN)
 ALIGN = 0.25
 WIDTH, HEIGHT = 1200, 600
+EPS = 0.001
 
 
 def _jpeg(width, height):
@@ -102,6 +103,58 @@ def _truth(document, listed, swap=()):
         a, b = (str(n) for n in swap)
         boxes[a], boxes[b] = boxes[b], boxes[a]
     return '```json\n' + json.dumps(boxes) + '\n```\n'
+
+
+def test_transitions():
+    lift = _lift()
+    listed = P.items(lift, EN)
+    edges = P.transitions(lift, EN, listed)
+    texts = [e.text for e in edges]
+    # by the numbers of the elements, the loops aside, the labels short
+    assert 't1: 2 -> 3 / floor = 1' in texts
+    assert any(text.startswith('t') and ': 3 -> 7 CALL [call_floor == floor]'
+               in text for text in texts)
+    assert all(len(text.split(' ', 1)[1]) <= P.LABEL_LIMIT + len('3 -> 7 ')
+               for text in texts)
+    text = P.request(EN, listed, WIDTH, HEIGHT, edges)
+    assert '"from": "right", "to": "left"' in text
+    assert text.endswith(texts[-1])
+
+
+def test_parse_sides():
+    lift = _lift()
+    edges = P.transitions(lift, EN, P.items(lift, EN))
+    answer = '```json\n' + json.dumps({
+        '3': [1, 2, 3, 4], 't1': {'from': 'Bottom', 'to': 'left'},
+        't2': {'from': 'sideways'}, 't3': ['top', 'top'], 't99': {}}) + \
+        '\n```'
+    assert P.parse_sides(answer, edges) == {
+        edges[0].element_id: ('bottom', 'left')}
+    assert not P.parse_sides('no object', edges)
+
+
+def test_sides_as_the_picture():
+    """The transition Idle -> DoorsOpen drawn from the bottom to the bottom
+    keeps its drawn sides in the orthogonal arrange."""
+    lift = _lift()
+    listed = P.items(lift, EN)
+    edges = P.transitions(lift, EN, listed)
+    edge = next(e for e in edges if ': 3 -> 7 ' in e.text)
+    truth = json.loads(_truth(lift, listed).split('```json\n')[1]
+                       .split('\n```')[0])
+    truth[edge.number] = {'from': 'bottom', 'to': 'bottom'}
+    result, client = _run([fenced(LIFT),
+                           '```json\n' + json.dumps(truth) + '\n```\n'])
+    assert result.placement.error is None
+    assert edge.text in client.calls[1][1][2]['content']
+    document = decode(result.graphml)
+    transition = document.find_element_by_id(edge.element_id)
+    for point, end in ((transition.get_geometry_source_point(),
+                        edge.source_id),
+                       (transition.get_geometry_target_point(),
+                        edge.target_id)):
+        rect = document.find_element_by_id(end).get_geometry_rect()
+        assert abs(point.x) < EPS and abs(point.y - rect.height / 2.0) < EPS
 
 
 def test_parse():

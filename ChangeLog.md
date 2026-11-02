@@ -33,7 +33,7 @@ Added:
   plugin; `routing` of the API): the transitions in runs along and across
   the flow by default, the straight segments on request (libhtreegeom 1.3);
 - the placement: a diagram drawn from a picture is arranged as the picture,
-  its proportions kept, by one more request and the arrange layout of
+  its proportions and the sides the transitions leave and enter by kept, by one more request and the arrange layout of
   libhtreegeom 1.3
   (`--geometry picture`, the default with `--picture`; `--picture-size`;
   the Layout and Picture size options of the plugin); a failed placement

@@ -21,8 +21,9 @@
 #  -----------------------------------------------------------------------------
 
 """The placement round: where the elements of an accepted diagram are in its
-picture. The boxes are the seed of the arrange layout, which keeps their
-arrangement - not their coordinates, the model's boxes are rough."""
+picture, and the sides the transitions leave and enter them by. The boxes
+are the seed of the arrange layout, which keeps their arrangement and their
+proportions; the sides are the drawn ends the orthogonal routes keep."""
 
 import json
 import math
@@ -39,6 +40,14 @@ SIZE_FIT = 'fit'
 SIZE_PICTURE = 'picture'
 SIZES = (SIZE_FIT, SIZE_PICTURE)
 BOX = 4
+# the sides of a box a transition leaves or enters by, and their offsets from
+# its centre in halves of the width and the height
+SIDES = {'left': (-1, 0), 'right': (1, 0), 'top': (0, -1), 'bottom': (0, 1)}
+FROM = 'from'
+TO = 'to'
+# the longest label of a transition in the request
+LABEL_LIMIT = 40
+ELLIPSIS = '...'
 # the smallest side of a box in the picture's pixels
 MIN_BOX = 1.0
 # picture: the share of the states whose texts fit their scaled boxes
@@ -103,10 +112,60 @@ def items(document, texts):
     return result
 
 
-def request(texts, listed, width, height):
-    """The text of the placement request."""
-    return texts.text('placement_request', width=width, height=height,
+class TransitionItem:
+    """A transition of the request, by the numbers of its ends."""
+
+    def __init__(self, number, element_id, source_id, target_id, text):
+        self.number = number
+        self.element_id = element_id
+        self.source_id = source_id
+        self.target_id = target_id
+        self.text = text
+
+
+def _label(transition):
+    """The short label of a transition: event [guard] / action."""
+    parts = [transition.event]
+    if transition.guard:
+        parts.append('[{}]'.format(transition.guard))
+    if transition.action:
+        parts.append('/ ' + ' '.join(transition.action.split()))
+    label = ' '.join(p for p in parts if p)
+    if len(label) > LABEL_LIMIT:
+        label = label[:LABEL_LIMIT - len(ELLIPSIS)] + ELLIPSIS
+    return ' ' + label if label else ''
+
+
+def transitions(document, texts, listed):
+    """The numbered transitions between two listed elements, loops aside."""
+    tree = read(document)
+    numbers = {item.element_id: item.number for item in listed}
+    result = []
+    for vertex in tree.walk():
+        for t in vertex.transitions:
+            if t.target is None or t.target is vertex or \
+                    vertex.element_id not in numbers or \
+                    t.target.element_id not in numbers:
+                continue
+            number = f't{len(result) + 1}'
+            result.append(TransitionItem(
+                number, t.element_id, vertex.element_id, t.target.element_id,
+                texts.text('placement_transition', number=number,
+                           source=numbers[vertex.element_id],
+                           target=numbers[t.target.element_id],
+                           label=_label(t))))
+    return result
+
+
+def request(texts, listed, width, height, edges=()):
+    """The text of the placement request: the elements, the transitions."""
+    text = texts.text('placement_request', width=width, height=height,
                       elements='\n'.join(item.text for item in listed))
+    if edges:
+        text += '\n\n' + texts.text(
+            'placement_sides',
+            transitions='\n'.join(item.text for item in edges))
+    return text
 
 
 def _object(answer):
@@ -122,6 +181,29 @@ def _object(answer):
         except ValueError:
             raise PlacementError('the JSON object of the answer cannot be '
                                  'read') from None
+
+
+def parse_sides(answer, edges):
+    """The sides {element id: (from, to)} of the transitions of an answer,
+    a side None when absent or unknown; no sides for a bad answer."""
+    try:
+        data = _object(answer)
+    except PlacementError:
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    numbers = {item.number: item for item in edges}
+    result = {}
+    for key, value in data.items():
+        item = numbers.get(str(key).strip())
+        if item is None or not isinstance(value, dict):
+            continue
+        sides = tuple(str(value.get(end, '')).strip().lower()
+                      for end in (FROM, TO))
+        sides = tuple(s if s in SIDES else None for s in sides)
+        if sides != (None, None):
+            result[item.element_id] = sides
+    return result
 
 
 def _clamp(value, limit):
@@ -197,14 +279,27 @@ def _needs(graphml):
     return result
 
 
-def apply(diagram, graphml, boxes, listed, size, routing=ROUTING_ORTHOGONAL):
+def _end(document, placed, element_id, side):
+    """A drawn end off the centre of its box (Qt: on the border): the
+    midpoint of the side, the centre when the side or the box is unknown."""
+    if side is None or element_id not in placed:
+        return CyberiadaML.Point(0.0, 0.0)
+    rect = document.find_element_by_id(element_id).get_geometry_rect()
+    dx, dy = SIDES[side]
+    return CyberiadaML.Point(dx * rect.width / 2.0, dy * rect.height / 2.0)
+
+
+def apply(diagram, graphml, boxes, listed, size, routing=ROUTING_ORTHOGONAL,
+          sides=None, edges=()):
     """The analysed diagram arranged as the boxes: built without geometry,
-    the scaled boxes as absolute rects and points, the arrange layout routed
-    as `routing` says; return (document, text)."""
+    the scaled boxes as absolute rects and points, the sides of the
+    transitions as their drawn ends, the arrange layout routed as `routing`
+    says; return (document, text)."""
     factor = scale(boxes, listed, _needs(graphml), size)
     by_number = {item.number: item for item in listed}
     document = build(diagram, GEOMETRY_NONE)
     document.set_geometry(CyberiadaML.geometryFormatLegacyYED)
+    placed = set()
     for number, box in boxes.items():
         item = by_number[number]
         element = document.find_element_by_id(item.element_id)
@@ -217,6 +312,17 @@ def apply(diagram, graphml, boxes, listed, size, routing=ROUTING_ORTHOGONAL):
         else:
             element.update_geometry(CyberiadaML.Rect(left, top, right - left,
                                                      bottom - top))
+            placed.add(item.element_id)
+    # the ends on the borders: the Qt edges (the LegacyYED ones are bound to
+    # the centres and projected toward the other end)
+    document.convert_geometry(CyberiadaML.geometryFormatQt)
+    for edge in edges:
+        drawn = (sides or {}).get(edge.element_id)
+        element = document.find_element_by_id(edge.element_id)
+        if drawn is None or element is None:
+            continue
+        element.update(_end(document, placed, edge.source_id, drawn[0]),
+                       _end(document, placed, edge.target_id, drawn[1]))
     document.arrange_geometry(True, routing_of(routing))
     document.convert_geometry(CyberiadaML.geometryFormatQt)
     document.meta().set_geometry(CyberiadaML.geometryDeclarationFull)

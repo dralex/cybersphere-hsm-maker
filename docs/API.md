@@ -196,6 +196,14 @@ The model servers.
 The placement round (`ARCHITECTURE.md`, The placement).
 
 * `GEOMETRY_PICTURE` - `'picture'`: a new diagram arranged as its picture.
+* `transitions(document, texts, listed)` - the `TransitionItem`s (`number`
+  `'tN'`, `element_id`, `source_id`, `target_id`, `text`) of the transitions
+  between two listed elements, loops aside; `request(texts, listed, width,
+  height, edges=())` lists them after the elements;
+  `parse_sides(answer, edges)` - `{element id: (from, to)}`, a side
+  `'left'`, `'right'`, `'top'`, `'bottom'` or `None`; `apply(diagram,
+  graphml, boxes, listed, size, routing='orthogonal', sides=None, edges=())`
+  draws the ends of the transitions on their sides.
 * `SIZE_FIT`, `SIZE_PICTURE`, `SIZES` - `'fit'`, `'picture'`: the sizes of the
   seed - under the texts, or the picture's proportions as minimums.
 * `PlacementError(reason)` - the placement round gives no seed.

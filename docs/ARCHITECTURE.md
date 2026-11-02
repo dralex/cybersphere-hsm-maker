@@ -297,7 +297,8 @@ The answer is the notation, checked like any other.
 
 A diagram drawn from a picture should look like it. Once the diagram is
 accepted, one more request - the placement round - asks the model where
-every element is in the picture; the boxes it answers are the seed of the
+every element is in the picture and the sides of the boxes every transition
+leaves and enters by; the boxes it answers are the seed of the
 arrange layout of `libhtreegeom` 1.3, which keeps the arrangement of the
 seed, pulls the elements to their places in it scaled to the least
 distances, and computes the rest as the full layout does.
@@ -307,15 +308,20 @@ distances, and computes the rest as the full layout does.
                               |  the fallback, and the sizes that fit the texts
                               v
  the placement round: [the request with the picture, the accepted answer,
-   "N kind path" for every element of the read-back tree, the picture size]
+   "N kind path" for every element of the read-back tree, the picture size,
+   "tN: N -> M label" for every transition between two of them, loops aside]
    (the same conversation prefix: the server's cache holds the picture)
                               |
- model --> {"N": [left, top, right, bottom], ...}  in the picture's pixels
+ model --> {"N": [left, top, right, bottom], ...,
+            "tN": {"from": side, "to": side}, ...}  in the picture's pixels
                               |
  placement.parse: the boxes clamped, unknown numbers and bad boxes dropped
+ placement.parse_sides: the sides left, right, top, bottom; the others dropped
  placement.apply: a build without geometry, LegacyYED (absolute) rects:
    the boxes scaled - fit: under the sizes of the texts; picture: so that
-   most texts fit - the marks (initial, final, points) at their centres
+   most texts fit - the marks (initial, final, points) at their centres;
+   then Qt: a transition's ends at the midpoints of its sides (a box not
+   placed: the centre)
                               |
  Document.arrange_geometry: the bands, the order in a layer and the flow
    direction of the seed kept; the places of the seed scaled to the least
@@ -343,6 +349,12 @@ distances, and computes the rest as the full layout does.
 * **Elements.** The machines (their frames), the states, the pseudostates,
   the points and the comments; the transitions and their labels are routed
   by the layout. An element without a box is laid in by the flow.
+* **Sides.** With the orthogonal routes the arrange keeps a side along the
+  flow: a transition drawn from the bottom of a state in a row leaves it by
+  its bottom, a branch of a choice by its tip as in the picture; a side
+  across the flow is the default one, a side against it is not kept; the
+  polylines ignore the sides. The sides go through Qt, whose ends lie on
+  the borders: the LegacyYED ends are bound to the centres.
 * **Cost.** One request more: the picture again (the prefix cache of the
   server makes it cheap), the list of the elements, a short answer.
 * **Change.** A change keeps its drawing (`update`): the placement is for a

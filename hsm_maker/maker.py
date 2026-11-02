@@ -248,21 +248,24 @@ def _place(result, asked, images, client, texts, code_language, size, log,
             raise placement.PlacementError('the size of the picture cannot '
                                            'be read')
         listed = placement.items(result.document, texts)
+        edges = placement.transitions(result.document, texts, listed)
         # the first message as in the rounds: the server's cache holds it
         messages = [{'role': 'user', 'content': asked, 'images': list(images)},
                     {'role': 'assistant', 'content': result.answer},
                     {'role': 'user',
                      'content': placement.request(texts, listed,
-                                                  *dimensions)}]
+                                                  *dimensions, edges)}]
         if trace is not None:
             trace(None, texts.system, messages)
         reply = client.complete(texts.system, messages)
         boxes = placement.parse(reply.text, listed, *dimensions)
+        sides = placement.parse_sides(reply.text, edges)
         diagram = parse(result.notation)
         diagram.language = _chosen(code_language) or diagram.language
         analyze(diagram)
         result.document, result.graphml = placement.apply(
-            diagram, result.graphml, boxes, listed, size, routing)
+            diagram, result.graphml, boxes, listed, size, routing, sides,
+            edges)
         result.placement = placement.Placement(len(boxes), len(listed))
     except PLACEMENT_ERRORS as error:
         result.placement = placement.Placement(
