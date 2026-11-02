@@ -524,7 +524,8 @@ itself is shown as it was sent, a picture as its name, type and size.
 | `hsm_maker/patcher.py` | the difference of two trees applied to a document, the change list |
 | `hsm_maker/maker.py` | `convert`, `change` (one notation to a document) and `run` (the loop) |
 | `hsm_maker/report.py` | the messages of a run: the progress, the dialog, the failure and its hint |
-| `hsm_maker/placement.py` | the placement round: the elements, the request, the boxes, the seed of the arrange |
+| `hsm_maker/placement.py` | the placement round: the elements, the transitions, the request, the boxes and the sides, the seed of the arrange |
+| `tools/likeness.py` | the likeness of a made diagram to its reference: the coverage, the sibling order, the displacement after a fitted scale, the overlap (not installed) |
 | `hsm_maker/cli.py` | the command `hsm-maker` |
 | `hsm_maker/plugin.py` | the installation of the editor plugin |
 | `hsm_maker/prompts/` | the texts of the languages |
