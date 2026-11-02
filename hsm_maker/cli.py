@@ -41,6 +41,9 @@ from .reader import ReadError
 from .report import PROGRAM, Report
 
 EXIT_MADE = 0
+# the check round of a run with a picture
+CHECK_ON = 'on'
+CHECK_OFF = 'off'
 EXIT_NOT_MADE = 1
 EXIT_USAGE = 2
 EXIT_SERVER = 3
@@ -94,6 +97,14 @@ def parser():
                           help='the routes of the transitions: orthogonal - '
                           'runs along and across the flow, polyline - '
                           'straight segments ({})'.format(ROUTING_ORTHOGONAL))
+    commands.add_argument('--check-picture', nargs='?', const=CHECK_ON,
+                          choices=(CHECK_ON, CHECK_OFF), default=CHECK_ON,
+                          help='compare the made diagram with the picture '
+                          'once more and take a correction ({})'.format(
+                              CHECK_ON))
+    commands.add_argument('--no-check-picture', dest='check_picture',
+                          action='store_const', const=CHECK_OFF,
+                          help='no check round')
     commands.add_argument('--picture-size', choices=SIZES, default=SIZE_FIT,
                           help='the sizes of the picture layout: fit - from '
                           'the texts, picture - at least the picture\'s '
@@ -289,7 +300,7 @@ def main(argv=None):
             result = run(prompt, client, language, options.geometry,
                          options.rounds, report.log, options.code_language,
                          pictures, report.trace, options.picture_size,
-                         options.routing)
+                         options.routing, options.check_picture == CHECK_ON)
         else:
             result = run_update(graphml, prompt, client, language,
                                 options.geometry, options.rounds, report.log,

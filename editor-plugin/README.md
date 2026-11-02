@@ -65,6 +65,9 @@ buttons.
 * **Routing** (Settings) - `orthogonal` draws the transitions in runs along
   and across the flow, from the sides of the states and the tips of the
   choices; `polyline` in straight segments.
+* **Check against the picture** (Settings) - `on` asks the model once more
+  to compare the made diagram with the picture and takes its correction;
+  `off` saves the request.
 * **Picture size** (Settings) - `fit` sizes the arranged states by their
   texts; `picture` keeps at least the proportions of the picture.
 * The settings are asked once and kept: the model (`deepseek-flash`), the

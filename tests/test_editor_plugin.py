@@ -190,6 +190,7 @@ def test_draw_by_picture(stub, tmp_path):
     picture = tmp_path / 'lift.png'
     picture.write_bytes(png(WIDTH, HEIGHT))
     stub.answer(chat_answer(fenced(diagram('lift.hsm'))))
+    stub.answer(chat_answer('NO CHANGES'))
     stub.answer(chat_answer(_truth(_lift(), placement.items(_lift(),
                                                             Texts('en')))))
     drawn = tmp_path / 'lift.graphml'
@@ -200,6 +201,8 @@ def test_draw_by_picture(stub, tmp_path):
     assert run.returncode == 0, run.stdout + run.stderr
     assert '[picture lift.png, image/png, 1 KiB]' in run.stdout
     assert 'round 1: the diagram is accepted' in run.stdout
+    assert '== check' in run.stdout
+    assert 'check: the diagram matches the picture' in run.stdout
     assert '== placement' in run.stdout
     assert 'placement: 7 of 7 elements placed as in the picture' in \
         run.stdout

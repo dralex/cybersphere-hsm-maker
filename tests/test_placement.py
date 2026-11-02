@@ -222,8 +222,9 @@ def _order(centres):
 def _run(answers, size=P.SIZE_FIT):
     client = FakeClient(answers)
     image = C.Image(png(WIDTH, HEIGHT), C.PNG, 'lift.png')
+    # the check round aside: tests/test_check.py
     result = M.run('', client, geometry=P.GEOMETRY_PICTURE, pictures=[image],
-                   size=size)
+                   size=size, check=False)
     return result, client
 
 

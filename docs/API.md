@@ -11,10 +11,10 @@ The package `hsm_maker` and the command `hsm-maker`. The reasons are in
 * `make(prompt, client=None, *, protocol=None, url=None, model=None,
   key=None, key_env=None, language='auto', code_language='auto',
   geometry='full', rounds=3, max_requests=None, timeout=None, log=None,
-  pictures=(), trace=None, size='fit', routing='orthogonal')` - make a
-  diagram from the description `prompt`; return a `Result`;
+  pictures=(), trace=None, size='fit', routing='orthogonal', check=True)` -
+  make a diagram from the description `prompt`; return a `Result`;
   `code_language`, `log`, `pictures`, `trace`, `geometry` (`'picture'`
-  too), `size` and `routing` as in `maker.run`.
+  too), `size`, `routing` and `check` as in `maker.run`.
   Without `client` a `Client` is created from the arguments and the
   environment (`client.from_environment`). Raises `ConfigError` for a bad
   configuration and `ClientError` when the server fails.
@@ -321,7 +321,7 @@ The conversion and the repair loop.
   model about a rejected conversion.
 * `run(prompt, client, language=AUTO, geometry=GEOMETRY_FULL,
   rounds=ROUNDS, log=None, code_language=AUTO, pictures=(), trace=None,
-  size=SIZE_FIT, routing=ROUTING_ORTHOGONAL)` -
+  size=SIZE_FIT, routing=ROUTING_ORTHOGONAL, check=True)` -
   the loop of `ARCHITECTURE.md`; return a `Result`. `trace(number, system,
   messages)` is called before every request with what is sent (a user
   message may have `images`), `log(number, reply, conversion)` after every
@@ -331,7 +331,13 @@ The conversion and the repair loop.
   full, then the placement round arranges it as the first picture
   (`size`: `'fit'` or `'picture'`); its `trace` and `log` have the number
   `None` and the `log` gets the `Placement`; a failed placement keeps the
-  full layout. Without a picture `'picture'` is `'full'`. `routing`:
+  full layout. Without a picture `'picture'` is `'full'`. With pictures and
+  `check` the check round asks once more whether the accepted diagram
+  matches them: `result.check` is a `Check` - `outcome` `CHECK_SAME`
+  (`'same'`, the answer `NO CHANGES`), `CHECK_CHANGED` (an accepted
+  correction replaced the diagram) or `CHECK_REJECTED` (`issues` its
+  errors), or `None` with `error` (a client error, the request limit); its
+  `trace` and `log` have the number `CHECK` (`'check'`). `routing`:
   `ROUTING_ORTHOGONAL` (`'orthogonal'`, the runs along and across the
   flow) or `ROUTING_POLYLINE` (`'polyline'`) for every layout of the run;
   `convert`, `change`, `run_update`, `make`, `update`,
@@ -357,6 +363,7 @@ The conversion and the repair loop.
               [--diagnostics FILE]
               [--geometry full|update|none|picture]
               [--picture-size fit|picture] [--routing orthogonal|polyline]
+              [--check-picture [on|off]] [--no-check-picture]
               [--language auto|en|ru]
               [--code-language auto|NAME]
               [--save-notation FILE] [--rounds N] [--max-requests N]
@@ -377,6 +384,8 @@ The conversion and the repair loop.
   arranges the new diagram as its first picture by the placement round;
   `--picture-size fit|picture` (`fit`) the sizes of its seed. Refused with
   `--update` and `--notation`.
+* `--check-picture [on|off]` (`on`), `--no-check-picture` - the check round
+  of a new diagram made from a picture.
 * `--routing orthogonal|polyline` (`orthogonal`) - the routes of the
   transitions of every layout: runs along and across the flow, or straight
   segments.

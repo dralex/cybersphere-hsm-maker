@@ -273,7 +273,18 @@ The answer is the notation, checked like any other.
                         model --> "NO PICTURE"? stop: reason no-picture
                           |
                           v
-                       notation --> the process
+                       notation --> the process --> accepted
+                          |
+ the check round (a new diagram, --check-picture on, the default):
+   [the first message with the picture, the accepted answer, check_request]
+                        model --> "NO CHANGES": the diagram stays
+                              --> a corrected notation --> the process
+                                    accepted: it replaces the diagram
+                                    rejected: the diagram stays, a warning
+   a server error, the request limit: the diagram stays, a warning
+                          |
+                          v
+                       the placement round (--geometry picture)
 ```
 
 * **Reading.** The system prompt asks to transcribe a statechart as drawn:
@@ -288,6 +299,13 @@ The answer is the notation, checked like any other.
 * **Formats.** PNG, JPEG, GIF and WebP up to 20 MiB are sent as they are:
   the maker neither converts nor scales (R7). An SVG is refused with a
   hint to export a PNG.
+* **Check.** A model transcribing a dense picture drops a transition or a
+  label now and then (The records); the rounds check the form, not the
+  likeness. One more request asks the model to compare its accepted diagram
+  with the picture element by element and to answer `NO CHANGES` or the
+  whole corrected diagram, which must pass the checks to replace the made
+  one. `--no-check-picture` (`--check-picture off`, the plugin's Check
+  against the picture) saves the request; a change (`--update`) has none.
 * **Change.** With `--update` the picture shows the change or the target
   diagram; the notation of the original goes with it as usual.
 * **Language.** An empty comment leaves the language to the editor's

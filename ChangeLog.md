@@ -29,6 +29,10 @@ Added:
   balance, the model, the server, the rounds), the dialog with the model
   by `-v` (`-vv` with the system prompt) and the Show the dialog setting
   of the plugin;
+- the check round of a diagram made from a picture (`--check-picture`,
+  `--no-check-picture`, the Check against the picture setting; `check` of
+  the API): the model compares its accepted diagram with the picture once
+  more and answers `NO CHANGES` or the corrected diagram;
 - the routing (`--routing orthogonal|polyline`, the Routing setting of the
   plugin; `routing` of the API): the transitions in runs along and across
   the flow by default, the straight segments on request (libhtreegeom 1.3);

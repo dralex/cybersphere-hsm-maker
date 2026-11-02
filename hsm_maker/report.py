@@ -30,7 +30,8 @@ import time
 
 from .client import (ANSWER, NETWORK, TIMED_OUT, ClientError, ConfigError,
                      RequestLimitError)
-from .maker import NO_PICTURE, REQUEST_LIMIT, ROUNDS
+from .maker import (CHECK, CHECK_CHANGED, CHECK_REJECTED, CHECK_SAME,
+                    NO_PICTURE, REQUEST_LIMIT, ROUNDS)
 from .notation import WARNING
 from .reader import ReadError
 
@@ -112,17 +113,21 @@ class Report:
 
     def trace(self, number, system, messages):
         """Before a request: the progress, and the messages sent; the number
-        None is the placement round."""
+        None is the placement round, CHECK the check round."""
         self.started = time.monotonic()
         if number is None:
             self._say(self.texts.text('progress_placing', model=self.model))
+        elif number == CHECK:
+            self._say(self.texts.text('progress_checking', model=self.model))
         else:
             self._say(self.texts.text('progress_ask', number=number,
                                       rounds=self.rounds, model=self.model))
         if self.verbosity < DIALOG:
             return
-        self._say('== placement' if number is None else
-                  '== round {} of {}'.format(number, self.rounds))
+        if number is None or number == CHECK:
+            self._say('== ' + ('placement' if number is None else CHECK))
+        else:
+            self._say('== round {} of {}'.format(number, self.rounds))
         if not self.system_shown:
             self.system_shown = True
             about = self.texts.text('dialog_system',
@@ -133,9 +138,9 @@ class Report:
             self._say('-- system: ' + about)
             if self.verbosity >= SYSTEM:
                 self._say(system.rstrip('\n'))
-        if number is None or number > 1:
-            # a repair round and the placement repeat the request and the
-            # last answer
+        if number is None or number == CHECK or number > 1:
+            # a repair round, the check and the placement repeat the request
+            # and the last answer
             self._say('-- ' + self.texts.text('dialog_again'))
             messages = messages[-1:]
         for message in messages:
@@ -149,7 +154,8 @@ class Report:
 
     def log(self, number, reply, conversion):
         """After an answer: the answer, its issues, the progress; the number
-        None is the placement round, its conversion a Placement."""
+        None is the placement round, its conversion a Placement, CHECK the
+        check round, its conversion a Check."""
         seconds = 0 if self.started is None else \
             round(time.monotonic() - self.started)
         spent = {'number': number, 'input': reply.usage.input_tokens,
@@ -160,7 +166,8 @@ class Report:
                 about += ', ' + self.texts.text('dialog_cut')
             self._say('-- assistant ({}):'.format(about))
             self._say(reply.text.rstrip('\n'))
-            if number is not None and conversion is not None and \
+            if number is not None and number != CHECK and \
+                    conversion is not None and \
                     (conversion.errors or conversion.warnings):
                 self._say('-- issues:')
                 for issue in conversion.errors + conversion.warnings:
@@ -170,6 +177,14 @@ class Report:
                 self._say(self.texts.text('progress_placed',
                                           placed=conversion.placed,
                                           total=conversion.total, **spent))
+            return
+        if number == CHECK:
+            key = {CHECK_SAME: 'progress_checked_same',
+                   CHECK_CHANGED: 'progress_checked_changed',
+                   CHECK_REJECTED: 'progress_checked_rejected'}.get(
+                       conversion.outcome)
+            if key is not None:
+                self._say(self.texts.text(key, **spent))
             return
         if conversion is None:
             key = 'progress_blind'
@@ -190,6 +205,13 @@ class Report:
         if result.ok:
             for issue in result.warnings:
                 self._say(quoted(self.texts, issue, result.notation))
+            checked = getattr(result, 'check', None)
+            if checked is not None and checked.outcome == CHECK_REJECTED:
+                self._say(self.texts.text('warning', text=self.texts.text(
+                    'check_rejected', count=checked.issues)))
+            elif checked is not None and checked.error is not None:
+                self._say(self.texts.text('warning', text=self.texts.text(
+                    'check_failed', reason=checked.error)))
             placed = getattr(result, 'placement', None)
             if placed is not None and placed.error is not None:
                 self._say(self.texts.text('warning', text=self.texts.text(

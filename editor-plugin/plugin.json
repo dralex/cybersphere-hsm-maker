@@ -149,6 +149,18 @@
       "description": "The routes of the transitions: orthogonal - runs along and across the flow; polyline - straight segments"
     },
     {
+      "id": "check_picture",
+      "type": "enum",
+      "label": "Check against the picture",
+      "scope": "persistent",
+      "choices": [
+        "on",
+        "off"
+      ],
+      "default": "on",
+      "description": "on: the model compares the made diagram with the picture once more and may correct it (one more request)"
+    },
+    {
       "id": "picture_size",
       "type": "enum",
       "label": "Picture size",
@@ -193,6 +205,7 @@
         "rounds",
         "routing",
         "picture_size",
+        "check_picture",
         "verbose"
       ],
       "description": "A new diagram from a description or a picture",
@@ -212,6 +225,8 @@
         "${param:draw_layout}",
         "--picture-size",
         "${param:picture_size}",
+        "--check-picture",
+        "${param:check_picture}",
         "-o",
         "${output}",
         "--diagnostics",

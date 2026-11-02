@@ -49,14 +49,14 @@ def make(prompt, client=None, *, protocol=None, url=None, model=None,
          key=None, key_env=None, language=AUTO, code_language=AUTO,
          geometry=GEOMETRY_FULL, rounds=ROUNDS, max_requests=None,
          timeout=None, log=None, pictures=(), trace=None,
-         size=SIZE_FIT, routing=ROUTING_ORTHOGONAL):
+         size=SIZE_FIT, routing=ROUTING_ORTHOGONAL, check=True):
     """Make a diagram from the description `prompt`, the comment to the
     pictures when there are any; return a Result."""
     if client is None:
         client = from_environment(protocol, url, model, key, key_env,
                                   max_requests=max_requests, timeout=timeout)
     return run(prompt, client, language, geometry, rounds, log,
-               code_language, pictures, trace, size, routing)
+               code_language, pictures, trace, size, routing, check)
 
 
 def update(graphml, prompt, client=None, *, protocol=None, url=None,

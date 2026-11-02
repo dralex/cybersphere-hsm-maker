@@ -42,6 +42,12 @@ ROUNDS_SPENT = 'rounds'
 REQUEST_LIMIT = 'request-limit'
 NO_PICTURE = 'no-picture'
 # a failed placement keeps the full layout
+# the check round: its number in the trace and the log, its outcomes
+CHECK = 'check'
+CHECK_SAME = 'same'
+CHECK_CHANGED = 'changed'
+CHECK_REJECTED = 'rejected'
+NO_CHANGES_ANSWER = 'NO CHANGES'
 PLACEMENT_ERRORS = (placement.PlacementError, ClientError, BuildError,
                     NotationError) + BINDING_ERRORS
 # the answer of a model that does not see the picture
@@ -84,6 +90,17 @@ class Result:
         self.truncated = truncated
         self.answer = answer
         self.placement = None
+        self.check = None
+
+
+class Check:
+    """The outcome of the check round: CHECK_SAME, CHECK_CHANGED or
+    CHECK_REJECTED with the count of the issues; None with an error."""
+
+    def __init__(self, outcome, issues=0, error=None):
+        self.outcome = outcome
+        self.issues = issues
+        self.error = error
 
 
 def _chosen(code_language):
@@ -207,12 +224,14 @@ def _blind(reply):
 
 def run(prompt, client, language=AUTO, geometry=GEOMETRY_FULL,
         rounds=ROUNDS, log=None, code_language=AUTO, pictures=(), trace=None,
-        size=placement.SIZE_FIT, routing=ROUTING_ORTHOGONAL):
+        size=placement.SIZE_FIT, routing=ROUTING_ORTHOGONAL, check=True):
     """Ask the model until the diagram is made, at most `rounds` times.
     `trace(number, system, messages)` is called before every request,
     `log(number, reply, conversion)` after every answer; the prompt is the
-    comment to the pictures when there are any. The geometry 'picture'
-    arranges the diagram as the first picture by the placement round."""
+    comment to the pictures when there are any. With pictures and `check`
+    the check round compares the accepted diagram with them once more. The
+    geometry 'picture' arranges the diagram as the first picture by the
+    placement round."""
     images = _images_of(pictures)
     before = Usage(client.usage.requests, client.usage.input_tokens,
                    client.usage.output_tokens)
@@ -225,15 +244,54 @@ def run(prompt, client, language=AUTO, geometry=GEOMETRY_FULL,
     placing = geometry == placement.GEOMETRY_PICTURE
     if placing:
         geometry = GEOMETRY_FULL
-    result = _loop(asked,
-                   lambda notation: convert(notation, geometry, code_language,
-                                            routing),
-                   client, texts, rounds, log, images, trace)
+
+    def conversion_of(notation):
+        return convert(notation, geometry, code_language, routing)
+
+    result = _loop(asked, conversion_of, client, texts, rounds, log, images,
+                   trace)
+    if check and images and result.ok:
+        _check(result, asked, images, client, texts, conversion_of, log,
+               trace)
     if placing and images and result.ok:
         _place(result, asked, images, client, texts, code_language, size,
                log, trace, routing)
+    if images and result.ok:
         result.usage = _spent(client, before)
     return result
+
+
+def _check(result, asked, images, client, texts, conversion_of, log, trace):
+    """The check round: the accepted diagram compared with the pictures once
+    more; an accepted correction replaces it, else it stays with the
+    reason."""
+    messages = [{'role': 'user', 'content': asked, 'images': list(images)},
+                {'role': 'assistant', 'content': result.answer},
+                {'role': 'user', 'content': texts.text('check_request')}]
+    reply = None
+    try:
+        if trace is not None:
+            trace(CHECK, texts.system, messages)
+        reply = client.complete(texts.system, messages)
+        if extract(reply.text).strip().rstrip('.').upper() == \
+                NO_CHANGES_ANSWER:
+            result.check = Check(CHECK_SAME)
+        else:
+            conversion = conversion_of(extract(reply.text))
+            if conversion.ok:
+                result.graphml = conversion.graphml
+                result.document = conversion.document
+                result.notation = conversion.notation
+                result.warnings = conversion.warnings
+                result.changes = conversion.changes
+                result.answer = reply.text
+                result.check = Check(CHECK_CHANGED)
+            else:
+                result.check = Check(CHECK_REJECTED, len(conversion.errors))
+    except ClientError as error:
+        result.check = Check(None, error=str(error) or type(error).__name__)
+    if reply is not None and log is not None:
+        log(CHECK, reply, result.check)
 
 
 def _place(result, asked, images, client, texts, code_language, size, log,

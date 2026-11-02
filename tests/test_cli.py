@@ -197,14 +197,16 @@ def test_picture_layout(stub, tmp_path, capsys):
     picture.write_bytes(png(WIDTH, HEIGHT))
     listed = placement.items(_lift(), Texts('en'))
     stub.answer(chat_answer(fenced(diagram('lift.hsm'))))
+    stub.answer(chat_answer('NO CHANGES'))
     stub.answer(chat_answer(_truth(_lift(), listed)))
     out = tmp_path / 'lift.graphml'
     assert cli.main(['--url', stub.url, '--model', 'm', '--picture',
                      str(picture), '-o', str(out), 'a lift']) == cli.EXIT_MADE
     messages = capsys.readouterr().out
+    assert 'check: the diagram matches the picture' in messages
     assert 'placement: asking m where the elements are' in messages
     assert 'placement: 7 of 7 elements placed as in the picture' in messages
-    assert 'rounds: 1, requests: 2' in messages
+    assert 'rounds: 1, requests: 3' in messages
     assert validate(str(out)) in (None, [])
 
 
