@@ -209,3 +209,12 @@ def test_routing(name):
     assert not _oblique(B.build(analysed))
     assert _oblique(B.build(analysed, B.GEOMETRY_FULL,
                             B.ROUTING_POLYLINE)) > 0
+
+
+def test_regions_stored():
+    """A laid-out document says its regions are stored, as the editor draws
+    them; a document without geometry does not."""
+    analysed = N.parse(diagram('lift.hsm'))
+    N.analyze(analysed)
+    assert B.build(analysed).meta().regions_stored()
+    assert not B.build(analysed, B.GEOMETRY_NONE).meta().regions_stored()

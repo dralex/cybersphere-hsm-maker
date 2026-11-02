@@ -155,6 +155,10 @@ is saved:
 | `update` (default of `--update`) | `update_geometry` - the drawn elements keep their places, the new ones are laid out around them (`libhtreegeom` 1.2); a diagram without geometry gets the full layout |
 | `picture` (default of `--picture`) | `arrange_geometry` - the full layered layout arranged as the picture: the places of the elements in the picture are the seed (The placement, `libhtreegeom` 1.3); without a picture it is `full` |
 
+A laid-out document carries the meta parameter `regionGeometry/ stored`:
+its region rects are the frames of the nested states, and CyberiadaPro draws
+them as stored rather than computing its own (`libcyberiadaml`).
+
 `--routing` (the plugin's Routing) shapes the transitions of every layout:
 `orthogonal` (default) - runs along and across the flow, the ends spread
 on the sides of the states facing the flow, a choice at its tips, the turns

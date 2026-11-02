@@ -208,6 +208,7 @@ def layout(document, geometry, routing=ROUTING_ORTHOGONAL):
         if _drawn(document):
             _call(None, document.clean_geometry)
         document.meta().set_geometry(CyberiadaML.geometryDeclarationNone)
+        document.meta().set_regions_stored(False)
         return
     if geometry == GEOMETRY_UPDATE and _drawn(document):
         bordered = all(m.has_geometry() for m in document.get_state_machines())
@@ -216,6 +217,9 @@ def layout(document, geometry, routing=ROUTING_ORTHOGONAL):
         _call(None, document.reconstruct_geometry, True, routing_of(routing))
     # without the declaration the edge geometry breaks the strict check
     document.meta().set_geometry(CyberiadaML.geometryDeclarationFull)
+    # the regions of the layout are the frames of their nested states: the
+    # editor draws them as stored
+    document.meta().set_regions_stored(True)
 
 
 def build(diagram, geometry=GEOMETRY_FULL, routing=ROUTING_ORTHOGONAL):

@@ -326,6 +326,7 @@ def apply(diagram, graphml, boxes, listed, size, routing=ROUTING_ORTHOGONAL,
     document.arrange_geometry(True, routing_of(routing))
     document.convert_geometry(CyberiadaML.geometryFormatQt)
     document.meta().set_geometry(CyberiadaML.geometryDeclarationFull)
+    document.meta().set_regions_stored(True)
     text = encode(document)
     verify(text)
     return document, text
