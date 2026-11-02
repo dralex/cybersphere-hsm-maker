@@ -794,6 +794,9 @@ line before the editor's own failure message.
   and the hint are in the output tab only. A session of the editor (its
   dialog mode: a status, questions, live findings) cannot return a
   document yet, so the plugin runs once per action.
+* The placement: a dense picture comes out larger than drawn, and the
+  editor draws a state nested in a composite with actions off its routes
+  (The records).
 * The placement: the model's boxes are rough, so a drawing from a picture
   keeps its arrangement and its proportions, not its exact coordinates;
   the transitions are routed by
