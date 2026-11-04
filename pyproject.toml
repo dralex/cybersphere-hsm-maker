@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cybersphere-hsm-maker"
-version = "0.1.0"
+version = "0.2.0"
 description = "The LLM-based maker of the CyberiadaML HSM diagrams from a description of a system"
 readme = "README.md"
 requires-python = ">=3.8"

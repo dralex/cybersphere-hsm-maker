@@ -39,7 +39,7 @@ The documentation is located in the `docs` directory and contains:
 The Debian package installs the maker, the command and the editor plugin:
 
     cmake -B build && cd build && ctest && cpack -G DEB
-    sudo apt install ./python3-cybersphere-hsm-maker_0.1.0_all.deb
+    sudo apt install ./python3-cybersphere-hsm-maker_0.2.0_all.deb
 
 `ctest` runs the tests with the Python CMake finds; it needs pytest and the
 binding (`-DPython3_EXECUTABLE=...` selects another one). The package

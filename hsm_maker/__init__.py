@@ -22,7 +22,7 @@
 
 """The LLM-based maker of the CyberiadaML HSM diagrams."""
 
-__version__ = '0.1.0'
+__version__ = '0.2.0'
 
 from .builder import (GEOMETRY_FULL, GEOMETRY_NONE, GEOMETRY_UPDATE,
                       ROUTING_ORTHOGONAL, ROUTING_POLYLINE)

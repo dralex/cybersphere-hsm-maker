@@ -2,7 +2,7 @@
   "api": 1,
   "id": "hsm-maker",
   "name": "HSM Maker",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Draws a new diagram from a description or a picture, or changes the open one, with a language model; the description, the picture and the diagram are sent to the model server",
   "icon": "icons/draw.svg",
   "interpreter": "python3",

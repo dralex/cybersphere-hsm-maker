@@ -142,7 +142,7 @@ def model(stub):
 
 def test_listed(tmp_path):
     run = editor(['--list-plugins'], tmp_path)
-    assert 'hsm-maker 0.1.0 enabled' in run.stdout
+    assert 'hsm-maker {} enabled'.format(__version__) in run.stdout
 
 
 def test_draw_and_change(stub, tmp_path):
