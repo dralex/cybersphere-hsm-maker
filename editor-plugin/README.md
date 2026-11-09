@@ -45,6 +45,8 @@ buttons.
 
 * **Draw a new diagram...** asks for the description and opens the result
   as a new document.
+* **Show the notation** is greyed out on an empty document (in an editor
+  with the plugin conditions); Change the diagram... draws into one.
 * **Change the diagram...** asks what to change and how to lay it out:
   `update` keeps your drawing and places only the new elements, `full`
   lays the whole diagram out anew. Unchanged elements keep their

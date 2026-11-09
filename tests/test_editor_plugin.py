@@ -36,8 +36,9 @@ from hsm_maker import maker as M
 from hsm_maker import plugin as P
 
 PLUGIN = os.path.join(ROOT, 'editor-plugin', 'plugin.json')
-EDITOR = os.path.join(os.path.dirname(ROOT), 'CyberiadaHSM-Editor', 'build',
-                      'CyberiadaPro')
+# CYBERIADA_PRO, else the build beside the repository
+EDITOR = os.environ.get('CYBERIADA_PRO') or os.path.join(
+    os.path.dirname(ROOT), 'CyberiadaHSM-Editor', 'build', 'CyberiadaPro')
 RESULTS = ('replace', 'new-document', 'diagnostics', 'files', 'log')
 VARIABLE_RE = re.compile(r'\$\{([a-z_-]+)(?::([a-z_]+))?\}')
 VARIABLES = ('input', 'output', 'diagnostics', 'outdir', 'rundir',
@@ -252,6 +253,13 @@ def test_notation(tmp_path):
                   '--dump-plugin'], tmp_path)
     assert run.returncode == 0, run.stdout + run.stderr
     assert 'machine Lift' in run.stdout
+
+
+def test_notation_refused_on_an_empty_document(tmp_path):
+    """Nothing to show: the editor refuses the action without a run."""
+    run = editor(['--run-plugin', 'hsm-maker:notation', '--dump-plugin'], tmp_path)
+    assert run.returncode == 6 and 'the document has no state machine' in run.stdout, \
+        'an editor older than the conditions of the actions (EDIT-PLUG-52)?\n' + run.stdout
 
 
 def test_version():

@@ -1,5 +1,13 @@
 # cybersphere-hsm-maker project changelog
 
+## Version 0.2.1 (unreleased)
+
+Changed:
+- the plugin action Show the notation declares that it needs a diagram
+  (`when: sm`): an editor with the plugin conditions greys it out on an
+  empty document;
+- the editor tests take the editor named by `CYBERIADA_PRO`.
+
 ## Version 0.2.0
 
 Added:
