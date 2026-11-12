@@ -153,6 +153,14 @@ def test_verify_reports_the_reason():
                for reason in ('regexp', "Bad action 'E-1/'"))
 
 
+@pytest.mark.skipif(not hasattr(CyberiadaML, 'FAException'), reason='no EXT-FA check in this backend')
+def test_verify_reports_an_fa_violation():
+    # a guard on a transition of an automaton: the strict check raises FAException
+    with pytest.raises(B.BuildError) as error:
+        B.verify(diagram('fa-invalid.graphml'))
+    assert error.value.issues[0].code == 'B02'
+
+
 def test_cyrillic_names_and_events():
     text = B.encode(B.build(tree(
         'machine Тостер\n  initial -> Нагрев\n  state Нагрев\n'

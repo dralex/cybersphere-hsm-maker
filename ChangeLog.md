@@ -8,6 +8,10 @@ Changed:
   empty document;
 - the editor tests take the editor named by `CYBERIADA_PRO`.
 
+Fixed:
+- the strict check of a finite automaton breaking EXT-FA reports the failure
+  (`B02`) instead of stopping on the binding's `FAException`.
+
 ## Version 0.2.0
 
 Added:

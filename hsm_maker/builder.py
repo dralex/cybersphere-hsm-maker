@@ -49,10 +49,11 @@ PLATFORM_LANGUAGE = 'platformLanguage'
 # the markup of the comments the maker writes (PNST 1044, 9.3)
 MARKDOWN = 'markdown'
 
-# the classes are registered apart and share no base but Exception
+# the binding before 1.2.0 registers the classes apart, with no base but
+# Exception: all of them are listed
 BINDING_ERRORS = tuple(getattr(CyberiadaML, name) for name in (
     'Exception', 'FileException', 'FormatException', 'XMLException',
-    'CybMLException', 'ActionException', 'MetainfoException',
+    'CybMLException', 'ActionException', 'MetainfoException', 'FAException',
     'ParametersException', 'NotFoundException', 'AssertException',
     'NotImplementedException') if hasattr(CyberiadaML, name))
 
