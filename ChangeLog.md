@@ -1,6 +1,6 @@
 # cybersphere-hsm-maker project changelog
 
-## Version 0.2.1 (unreleased)
+## Version 0.2.1
 
 Changed:
 - the plugin action Show the notation declares that it needs a diagram
